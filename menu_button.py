@@ -1,9 +1,8 @@
 from calibre.gui2.actions import InterfaceAction
-from calibre_plugins.highlights_to_obsidian.main import DemoDialog
+from calibre_plugins.highlights_to_obsidian.main import MainDialog
 
 
 class MenuButton(InterfaceAction):
-
     name = 'Send Highlights to Obsidian'
 
     # Declare the main action associated with this plugin
@@ -11,7 +10,7 @@ class MenuButton(InterfaceAction):
     # shortcut. Remember that currently calibre has no central management for
     # keyboard shortcuts, so try to use an unusual/unused shortcut.
     action_spec = ('Send Highlights to Obsidian', None,
-            'Send Highlights to Obsidian', None)
+                   'Send Highlights to Obsidian', None)
 
     def genesis(self):
         # This method is called once per plugin, do initial setup here
@@ -35,9 +34,11 @@ class MenuButton(InterfaceAction):
         # self.qaction.setIcon(icon)
         self.qaction.triggered.connect(self.show_dialog)
 
+        # todo: send new highlights on startup. add option to disable this.
+
     def show_dialog(self):
         # The base plugin object defined in __init__.py
-        base_plugin_object = self.interface_action_base_plugin
+        base_plugin_object = self.interface_action_base_plugin  # this is only referenced here? never defined?
         # Show the config dialog
         # The config dialog can also be shown from within
         # Preferences->Plugins, which is why the do_user_config
@@ -47,7 +48,7 @@ class MenuButton(InterfaceAction):
         # self.gui is the main calibre GUI. It acts as the gateway to access
         # all the elements of the calibre user interface, it should also be the
         # parent of the dialog
-        d = DemoDialog(self.gui, self.qaction.icon(), do_user_config)
+        d = MainDialog(self.gui, self.qaction.icon(), do_user_config)
         d.show()
 
     def apply_settings(self):

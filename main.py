@@ -4,7 +4,7 @@ from calibre_plugins.highlights_to_obsidian.send import send_highlights
 from time import strptime, strftime, localtime, mktime
 
 
-class DemoDialog(QDialog):
+class MainDialog(QDialog):
 
     def __init__(self, gui, icon, do_user_config):
         QDialog.__init__(self, gui)
@@ -18,41 +18,11 @@ class DemoDialog(QDialog):
         # a much nicer interface from db/cache.py
         self.db = gui.current_db
 
-        # todo: add text telling user where they can change their settings
-        # also display their settings for easy reference
-
         self.l = QVBoxLayout()
         self.setLayout(self.l)
 
-        """
-        self.label = QLabel(prefs['hello_world_msg'])
-        self.l.addWidget(self.label)
-
-        self.setWindowTitle('Highlights to Obsidian')
-        self.setWindowIcon(icon)
-
-        self.about_button = QPushButton('About', self)
-        self.about_button.clicked.connect(self.about)
-        self.l.addWidget(self.about_button)
-
-        self.marked_button = QPushButton(
-            'Show books with only one format in the calibre GUI', self)
-        self.marked_button.clicked.connect(self.marked)
-        self.l.addWidget(self.marked_button)
-
-        self.view_button = QPushButton(
-            'View the most recently added book', self)
-        self.view_button.clicked.connect(self.view)
-        self.l.addWidget(self.view_button)
-
-        self.update_metadata_button = QPushButton(
-            'Update metadata in a book\'s files', self)
-        self.update_metadata_button.clicked.connect(self.update_metadata)
-        self.l.addWidget(self.update_metadata_button)
-        """
-
         self.conf_button = QPushButton(
-                'Configure this plugin', self)
+            'Configure this plugin', self)
         self.conf_button.clicked.connect(self.config)
         self.l.addWidget(self.conf_button)
 
@@ -61,12 +31,13 @@ class DemoDialog(QDialog):
         self.l.addWidget(self.send_button)
 
         self.send_all_button = QPushButton("Send all highlights to obsidian", self)
-        # todo: add a confirmation box to this
+        # todo: add a confirmation dialog to this
         self.send_all_button.clicked.connect(self.send_all_highlights)
         self.l.addWidget(self.send_all_button)
 
         self.resize(self.sizeHint())
 
+    # todo: remove unused functions: about(), marked(), view(), update_metadata()
     def about(self):
         # Get the about text from a file inside the plugin zip file
         # The get_resources function is a builtin function defined for all your
@@ -80,7 +51,7 @@ class DemoDialog(QDialog):
         text = get_resources('about.txt')
         QMessageBox.about(self, 'Last Time Highlights Were Sent',
                           prefs["last_send_time"])
-                          # text.decode('utf-8'))
+        # text.decode('utf-8'))
 
     def marked(self):
         ''' Show books with only one format '''
@@ -122,7 +93,7 @@ class DemoDialog(QDialog):
         rows = self.gui.library_view.selectionModel().selectedRows()
         if not rows or len(rows) == 0:
             return error_dialog(self.gui, 'Cannot update metadata',
-                             'No books selected', show=True)
+                                'No books selected', show=True)
         # Map the rows to book ids
         ids = list(map(self.gui.library_view.model().id, rows))
         db = self.db.new_api
@@ -147,12 +118,12 @@ class DemoDialog(QDialog):
                 db.add_format(book_id, fmt, ffile, run_hooks=False)
 
         info_dialog(self, 'Updated files',
-                'Updated the metadata in the files of %d book(s)'%len(ids),
-                show=True)
+                    'Updated the metadata in the files of %d book(s)' % len(ids),
+                    show=True)
 
     def config(self):
         self.do_user_config(parent=self)
-        # Apply the changes
+        # if any config changes require updating this
 
     def send_new_highlights(self):
         last_send_time = mktime(strptime(prefs["last_send_time"], "%Y-%m-%d %H:%M:%S"))
@@ -177,6 +148,7 @@ class DemoDialog(QDialog):
         prefs["last_send_time"] = strftime("%Y-%m-%d %H:%M:%S", localtime())
 
         # todo: add something to tell the user that highlights have been sent
+        # maybe a QMessageBox
 
     def send_all_highlights(self):
 
