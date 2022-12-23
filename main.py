@@ -1,5 +1,7 @@
 from qt.core import QDialog, QVBoxLayout, QPushButton, QMessageBox, QLabel
 from calibre_plugins.highlights_to_obsidian.config import prefs
+from calibre_plugins.highlights_to_obsidian.send import send_highlights
+from time import strptime, strftime, localtime, mktime
 
 
 class DemoDialog(QDialog):
@@ -16,12 +18,13 @@ class DemoDialog(QDialog):
         # a much nicer interface from db/cache.py
         self.db = gui.current_db
 
-        # add text telling user where they can change their settings
+        # todo: add text telling user where they can change their settings
         # also display their settings for easy reference
 
         self.l = QVBoxLayout()
         self.setLayout(self.l)
 
+        """
         self.label = QLabel(prefs['hello_world_msg'])
         self.l.addWidget(self.label)
 
@@ -46,15 +49,21 @@ class DemoDialog(QDialog):
             'Update metadata in a book\'s files', self)
         self.update_metadata_button.clicked.connect(self.update_metadata)
         self.l.addWidget(self.update_metadata_button)
+        """
 
         self.conf_button = QPushButton(
                 'Configure this plugin', self)
         self.conf_button.clicked.connect(self.config)
         self.l.addWidget(self.conf_button)
 
-        self.send_button = QPushButton("Send highlights to obsidian", self)
-        self.send_button.clicked.connect(self.send_highlights)
+        self.send_button = QPushButton("Send new highlights to obsidian", self)
+        self.send_button.clicked.connect(self.send_new_highlights)
         self.l.addWidget(self.send_button)
+
+        self.send_all_button = QPushButton("Send all highlights to obsidian", self)
+        # todo: add a confirmation box to this
+        self.send_all_button.clicked.connect(self.send_all_highlights)
+        self.l.addWidget(self.send_all_button)
 
         self.resize(self.sizeHint())
 
@@ -69,8 +78,9 @@ class DemoDialog(QDialog):
         # get_resources will return a dictionary mapping names to bytes. Names that
         # are not found in the zip file will not be in the returned dictionary.
         text = get_resources('about.txt')
-        QMessageBox.about(self, 'About the Interface Plugin Demo',
-                text.decode('utf-8'))
+        QMessageBox.about(self, 'Last Time Highlights Were Sent',
+                          prefs["last_send_time"])
+                          # text.decode('utf-8'))
 
     def marked(self):
         ''' Show books with only one format '''
@@ -143,10 +153,37 @@ class DemoDialog(QDialog):
     def config(self):
         self.do_user_config(parent=self)
         # Apply the changes
-        self.label.setText(prefs['hello_world_msg'])
 
-    def send_highlights(self):
-        from calibre_plugins.highlights_to_obsidian.send import send_highlights
-        from time import strptime, strftime, localtime
-        send_highlights(last_send_time=strptime(prefs["last_send_time"], "%Y-%m-%d %H:%M:%S"))
+    def send_new_highlights(self):
+        last_send_time = mktime(strptime(prefs["last_send_time"], "%Y-%m-%d %H:%M:%S"))
+
+        def highlight_send_condition(highlight) -> bool:
+            """
+            :param highlight: json object containing a calibre highlight's data
+            :return: true if the highlight was made after last send time, else false
+            """
+            # an alternative method is to save the uuid of each highlight as it's sent,
+            # then save that list in prefs.
+
+            # calibre's time format example: "2022-09-10T20:32:08.820Z"
+            highlight_time = mktime(strptime(highlight["timestamp"][:-5], "%Y-%m-%dT%H:%M:%S"))
+            return highlight_time > last_send_time
+
+        # send_highlights(title_format, body_format, no_notes_format, vault_name, library_name, condition)
+        send_highlights(prefs['title_format'], prefs['body_format'], vault_name=prefs['vault_name'],
+                        condition=highlight_send_condition)
+
+        # updating prefs might belong in menu_button.py's apply_settings function, idk
         prefs["last_send_time"] = strftime("%Y-%m-%d %H:%M:%S", localtime())
+
+        # todo: add something to tell the user that highlights have been sent
+
+    def send_all_highlights(self):
+
+        # send_highlights(title_format, body_format, no_notes_format, vault_name, library_name, condition)
+        send_highlights(prefs['title_format'], prefs['body_format'], vault_name=prefs['vault_name'])
+
+        # updating prefs might belong in menu_button.py's apply_settings function, idk
+        prefs["last_send_time"] = strftime("%Y-%m-%d %H:%M:%S", localtime())
+
+        # todo: add something to tell the user that highlights have been sent

@@ -4,16 +4,6 @@
 from calibre.customize import InterfaceActionBase
 
 
-"""
-things left to do:
-- add config for title and body format
-- only send highlights that haven't been sent already
-- also add option to send all highlights
-- by default, start counting last send time as the same as the program's first run
-
-"""
-
-
 class HighlightsToObsidianPlugin(InterfaceActionBase):
     name                = 'Highlights to Obsidian'
     description         = 'Automatically send highlights from calibre to obsidian.md'

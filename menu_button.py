@@ -26,7 +26,7 @@ class MenuButton(InterfaceAction):
         # should pass a list of names to get_icons. In this case, get_icons
         # will return a dictionary mapping names to QIcons. Names that
         # are not found in the zip file will result in null QIcons.
-        #
+
         # highlights_to_obsidian doesn't currently have an icon
         # icon = get_icons('images/icon.png', 'Interface Demo Plugin')
 
