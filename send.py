@@ -7,7 +7,7 @@ from time import localtime
 
 # relative or absolute path to annotations file exported from calibre
 # to use this program, set this variable and then run it
-calibre_annotations_path = "annotations.calibre_annotation_collection"
+calibre_annotations_path = r"C:\Users\Admin\Documents\Github\highlights-to-obsidian\annotations.calibre_annotation_collection"
 
 # format strings for the title and contents of the note being sent to obsidian
 # for a full list of formatting options, see the variable format_options in the function make_format_dict
@@ -15,7 +15,7 @@ note_title = "Books/Book {title}"
 note_body = "\n[Highlighted]({url}) on {date} at {time} UTC {timeoffset}:\n{blockquote}\n\n{notes}\n\n---\n"
 
 
-def send_to_obsidian(obsidian_data: Dict[str, str]) -> None:
+def send_item_to_obsidian(obsidian_data: Dict[str, str]) -> None:
     encoded_data = urlencode(obsidian_data, quote_via=quote)
     uri = "obsidian://new?" + encoded_data
     webbrowser.open(uri)
@@ -95,7 +95,11 @@ def make_format_dict(data: Dict[str, str]) -> Dict[str, str]:  # takes calibre j
     return format_options
 
 
-def main():
+def send_highlights():
+    """
+    sends highlights to obsidian. currently uses the annotations.calibre_annotation_collection
+    file to get highlight data.
+    """
     # encoding has to be 'utf-8-sig' because calibre annotation files use BOM
     file = open(calibre_annotations_path, encoding='utf-8-sig')
 
@@ -119,8 +123,8 @@ def main():
             "append": "true",
         }
 
-        send_to_obsidian(obsidian_data)
+        send_item_to_obsidian(obsidian_data)
 
 
 if __name__ == "__main__":
-    main()
+    send_highlights()
