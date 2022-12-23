@@ -1,8 +1,9 @@
+import time
 import webbrowser
 from typing import Dict, List
 from urllib.parse import urlencode, quote
 import datetime
-from time import localtime
+# avoid importing anything from the calibre plugin here
 
 
 # relative or absolute path to annotations file exported from calibre
@@ -70,7 +71,7 @@ def make_format_dict(data: Dict[str, str]) -> Dict[str, str]:  # takes calibre j
         "location": data["start_cfi"],
     }
 
-    local = localtime()
+    local = time.localtime()
 
     format_options = {
         "title": data["book_id"],  # title of book
@@ -95,10 +96,12 @@ def make_format_dict(data: Dict[str, str]) -> Dict[str, str]:  # takes calibre j
     return format_options
 
 
-def send_highlights():
+def send_highlights(title_format: str = note_title, body_format: str = note_body, last_send_time: time.struct_time = None):
     """
     sends highlights to obsidian. currently uses the annotations.calibre_annotation_collection
     file to get highlight data.
+
+    if last_send_time isn't None, this will exclude any highlights that were made before last_send_time
     """
     # encoding has to be 'utf-8-sig' because calibre annotation files use BOM
     file = open(calibre_annotations_path, encoding='utf-8-sig')
@@ -114,12 +117,13 @@ def send_highlights():
 
     for highlight in highlights:
         dat = make_format_dict(highlight)
-        formatted = format_data(note_title, note_body, dat)
+        # todo: filter out highlights before last_send_time if last_send_time is not None
+        formatted = format_data(title_format, body_format, dat)
 
         obsidian_data: Dict[str, str] = {
             "vault": "Test",
             "file": formatted[0],
-            "content": formatted[1],
+            "content": formatted[1] + str(last_send_time),
             "append": "true",
         }
 

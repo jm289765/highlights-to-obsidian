@@ -53,8 +53,7 @@ class DemoDialog(QDialog):
         self.l.addWidget(self.conf_button)
 
         self.send_button = QPushButton("Send highlights to obsidian", self)
-        from calibre_plugins.highlights_to_obsidian.send import send_highlights
-        self.send_button.clicked.connect(send_highlights)
+        self.send_button.clicked.connect(self.send_highlights)
         self.l.addWidget(self.send_button)
 
         self.resize(self.sizeHint())
@@ -145,3 +144,9 @@ class DemoDialog(QDialog):
         self.do_user_config(parent=self)
         # Apply the changes
         self.label.setText(prefs['hello_world_msg'])
+
+    def send_highlights(self):
+        from calibre_plugins.highlights_to_obsidian.send import send_highlights
+        from time import strptime, strftime, localtime
+        send_highlights(last_send_time=strptime(prefs["last_send_time"], "%Y-%m-%d %H:%M:%S"))
+        prefs["last_send_time"] = strftime("%Y-%m-%d %H:%M:%S", localtime())
