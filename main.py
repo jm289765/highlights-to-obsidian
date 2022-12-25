@@ -1,6 +1,6 @@
 from qt.core import QDialog, QVBoxLayout, QPushButton, QMessageBox, QLabel
 from calibre_plugins.highlights_to_obsidian.config import prefs
-from calibre_plugins.highlights_to_obsidian.send import send_highlights
+from calibre_plugins.highlights_to_obsidian.send import HighlightSender
 from time import strptime, strftime, localtime, mktime
 
 
@@ -37,21 +37,7 @@ class MainDialog(QDialog):
 
         self.resize(self.sizeHint())
 
-    # todo: remove unused functions: about(), marked(), view(), update_metadata()
-    def about(self):
-        # Get the about text from a file inside the plugin zip file
-        # The get_resources function is a builtin function defined for all your
-        # plugin code. It loads files from the plugin zip file. It returns
-        # the bytes from the specified file.
-        #
-        # Note that if you are loading more than one file, for performance, you
-        # should pass a list of names to get_resources. In this case,
-        # get_resources will return a dictionary mapping names to bytes. Names that
-        # are not found in the zip file will not be in the returned dictionary.
-        text = get_resources('about.txt')
-        QMessageBox.about(self, 'Last Time Highlights Were Sent',
-                          prefs["last_send_time"])
-        # text.decode('utf-8'))
+    # todo: remove unused functions: marked(), view(), update_metadata()
 
     def marked(self):
         ''' Show books with only one format '''
@@ -140,9 +126,13 @@ class MainDialog(QDialog):
             highlight_time = mktime(strptime(highlight["timestamp"][:-5], "%Y-%m-%dT%H:%M:%S"))
             return highlight_time > last_send_time
 
-        # send_highlights(title_format, body_format, no_notes_format, vault_name, library_name, condition)
-        send_highlights(prefs['title_format'], prefs['body_format'], vault_name=prefs['vault_name'],
-                        condition=highlight_send_condition)
+        sender = HighlightSender()
+        sender.set_library("Calibre Library")  # todo: don't hardcode this
+        sender.set_vault(prefs["vault_name"])
+        sender.set_title_format(prefs["title_format"])
+        sender.set_body_format(prefs["body_format"])
+        sender.set_no_notes_format("")  # todo: implement this
+        sender.send(condition=highlight_send_condition)
 
         # updating prefs might belong in menu_button.py's apply_settings function, idk
         prefs["last_send_time"] = strftime("%Y-%m-%d %H:%M:%S", localtime())
@@ -152,8 +142,13 @@ class MainDialog(QDialog):
 
     def send_all_highlights(self):
 
-        # send_highlights(title_format, body_format, no_notes_format, vault_name, library_name, condition)
-        send_highlights(prefs['title_format'], prefs['body_format'], vault_name=prefs['vault_name'])
+        sender = HighlightSender()
+        sender.set_library("Calibre Library")  # todo: don't hardcode this
+        sender.set_vault(prefs["vault_name"])
+        sender.set_title_format(prefs["title_format"])
+        sender.set_body_format(prefs["body_format"])
+        sender.set_no_notes_format("")  # todo: implement this
+        sender.send()
 
         # updating prefs might belong in menu_button.py's apply_settings function, idk
         prefs["last_send_time"] = strftime("%Y-%m-%d %H:%M:%S", localtime())

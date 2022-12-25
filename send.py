@@ -3,15 +3,9 @@ import webbrowser
 from typing import Dict, List, Callable, Any
 from urllib.parse import urlencode, quote
 import datetime
+
+
 # avoid importing anything from the calibre plugin here
-
-
-# relative or absolute path to annotations file exported from calibre
-# to use this program, set this variable and then run it
-calibre_annotations_path = r"C:\Users\Admin\Documents\Github\highlights-to-obsidian\annotations.calibre_annotation_collection"
-
-# format strings for the title and contents of the note being sent to obsidian
-# for a full list of formatting options, see the variable format_options in the function make_format_dict
 library_default_name = "Calibre Library"
 vault_default_name = "Test"
 title_default_format = "Books/{title}"
@@ -49,16 +43,17 @@ def format_data(title: str, body: str, dat: Dict[str, str]) -> List[str]:
         return ret
 
     pre_format = title.replace("{title}", remove_slashes(dat["title"]))
-    # todo: use different body format depending on whether there are notes
+    # todo: use different body format depending on whether there are notes. also add config for it
     return [remove_illegal_title_chars(pre_format.format(**dat)), body.format(**dat)]
 
 
-def make_format_dict(data: Dict[str, str], calibre_library=library_default_name) -> Dict[str, str]:
+def make_format_dict(data: Dict[str, str], calibre_library: str) -> Dict[str, str]:
     """
     :param data: json object of a calibre highlight
     :param calibre_library: name of the calibre library, to make a url to the highlight
     :return:
     """
+
     def format_blockquote(text: str) -> str:
         return "> " + text.replace("\n", "\n> ")
 
@@ -107,43 +102,74 @@ def make_format_dict(data: Dict[str, str], calibre_library=library_default_name)
     return format_options
 
 
-def send_highlights(title_format: str = title_default_format, body_format: str = body_default_format,
-                    no_notes_format: str = no_notes_default_format, vault_name: str = vault_default_name,
-                    library_name: str = library_default_name, condition: Callable[[Any], bool] = lambda x: True):
-    """
-    sends highlights to obsidian. currently uses the annotations.calibre_annotation_collection
-    file to get highlight data.
+class HighlightSender:
 
-    if last_send_time isn't None, this will exclude any highlights that were made before last_send_time
+    def __init__(self):
+        # todo: remove this variable
+        self.calibre_annotations_path = \
+            r"C:\Users\Admin\Documents\Github\highlights-to-obsidian\annotations.calibre_annotation_collection"
 
-    condition takes a highlight's json object and returns true if that highlight should be sent to obsidian.
-    """
-    # encoding has to be 'utf-8-sig' because calibre annotation files use BOM
-    file = open(calibre_annotations_path, encoding='utf-8-sig')
+        # set defaults
+        self.library_name = library_default_name
+        self.vault_name = vault_default_name
+        self.title_format = title_default_format
+        self.body_format = body_default_format
+        self.no_notes_format = no_notes_default_format
 
-    from json import load
-    annotations = load(file, parse_int=str, parse_float=str, parse_constant=str)
+        # highlight send condition variable
+        # highlights json object variable
 
-    highlights = filter(lambda a: a["type"] == "highlight", annotations["annotations"])
+    def set_library(self, library_name: str):
+        self.library_name = library_name
 
-    for highlight in highlights:
-        if not condition(highlight):
-            continue
+    def set_vault(self, vault_name: str):
+        self.vault_name = vault_name
 
-        dat = make_format_dict(highlight, library_name)
-        formatted = format_data(title_format, body_format, dat)
+    def set_title_format(self, title_format: str):
+        self.title_format = title_format
 
-        obsidian_data: Dict[str, str] = {
-            "vault": vault_name,
-            "file": formatted[0],
-            "content": formatted[1],
-            "append": "true",
-        }
+    def set_body_format(self, body_format: str):
+        self.body_format = body_format
 
-        send_item_to_obsidian(obsidian_data)
+    def set_no_notes_format(self, no_notes_format: str):
+        """
+        sets the body format to be used for highlights that the user didn't make notes for
+        """
+        self.no_notes_format = no_notes_format
 
-    # todo: return number of highlights sent, and use that as output in main.py
+    def send(self, condition: Callable[[Any], bool] = lambda x: True):
+        """
+        sends highlights to obsidian. currently uses the annotations.calibre_annotation_collection
+        file to get highlight data.
+
+        condition takes a highlight's json object and returns true if that highlight should be sent to obsidian.
+        """
+        # encoding has to be 'utf-8-sig' because calibre annotation files use BOM
+        # todo: get annotations directly from calibre
+        file = open(self.calibre_annotations_path, encoding='utf-8-sig')
+
+        from json import load
+        annotations = load(file, parse_int=str, parse_float=str, parse_constant=str)
+
+        highlights = filter(lambda a: a["type"] == "highlight", annotations["annotations"])
+
+        for highlight in highlights:
+            if not condition(highlight):
+                continue
+
+            dat = make_format_dict(highlight, self.library_name)
+            formatted = format_data(self.title_format, self.body_format, dat)
+
+            obsidian_data: Dict[str, str] = {
+                "vault": self.vault_name,
+                "file": formatted[0],
+                "content": formatted[1],
+                "append": "true",
+            }
+
+            send_item_to_obsidian(obsidian_data)
+
+        # todo: return number of highlights sent, and use that as output for main.py
 
 
-if __name__ == "__main__":
-    send_highlights()
+x = HighlightSender()
