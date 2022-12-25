@@ -2,7 +2,8 @@ import time
 
 from qt.core import QWidget, QVBoxLayout, QLabel, QLineEdit, QPlainTextEdit
 from calibre.utils.config import JSONConfig
-from calibre_plugins.highlights_to_obsidian.send import title_default_format, body_default_format, vault_default_name
+from calibre_plugins.highlights_to_obsidian.send import (title_default_format, body_default_format,
+                                                         vault_default_name, no_notes_default_format)
 
 # This is where all preferences for this plugin will be stored
 # Remember that this name (i.e. plugins/highlights_to_obsidian) is also
@@ -16,6 +17,7 @@ prefs.defaults['last_send_time'] = time.strftime("%Y-%m-%d %H:%M:%S", time.gmtim
 prefs.defaults['vault_name'] = vault_default_name
 prefs.defaults['title_format'] = title_default_format
 prefs.defaults['body_format'] = body_default_format
+prefs.defaults['no_notes_format'] = no_notes_default_format
 
 
 # todo: keep track of uuids of highlights that have been sent
@@ -29,6 +31,13 @@ class ConfigWidget(QWidget):
         QWidget.__init__(self)
         self.l = QVBoxLayout()
         self.setLayout(self.l)
+
+        # header
+        self.config_label = QLabel('Highlights to Obsidian Config')
+        self.l.addWidget(self.config_label)
+        # this linebreak has to be long so that it expands the width of the config window
+        self.config_linebreak_label = QLabel("=" * 60)
+        self.l.addWidget(self.config_linebreak_label)
 
         # obsidian vault name
         self.vault_label = QLabel('Obsidian vault name:')
@@ -60,6 +69,16 @@ class ConfigWidget(QWidget):
         self.l.addWidget(self.body_format_input)
         self.body_format_label.setBuddy(self.body_format_input)
 
+        # obsidian no notes body format
+        self.no_notes_format_label = QLabel('Body format for highlights without notes (empty defaults to body format):')
+        self.l.addWidget(self.no_notes_format_label)
+
+        self.no_notes_format_input = QPlainTextEdit(self)
+        self.no_notes_format_input.setPlainText(prefs['no_notes_format'])
+        self.no_notes_format_input.setPlaceholderText("Body format for highlights without notes")
+        self.l.addWidget(self.no_notes_format_input)
+        self.no_notes_format_label.setBuddy(self.no_notes_format_input)
+
         # todo: explain note formatting options
 
         # time setting
@@ -80,4 +99,5 @@ class ConfigWidget(QWidget):
         prefs['vault_name'] = self.vault_input.text()
         prefs['title_format'] = self.title_format_input.text()
         prefs['body_format'] = self.body_format_input.toPlainText()
+        prefs['no_notes_format'] = self.no_notes_format_input.toPlainText()
         prefs['last_send_time'] = self.time_input.text()

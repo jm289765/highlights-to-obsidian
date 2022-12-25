@@ -19,9 +19,11 @@ def send_item_to_obsidian(obsidian_data: Dict[str, str]) -> None:
     webbrowser.open(uri)
 
 
-def format_data(title: str, body: str, dat: Dict[str, str]) -> List[str]:
+def format_data(dat: Dict[str, str], title: str, body: str, no_notes_body: str = None) -> List[str]:
     """
     apply string.format() to title and body with data values from dat. Also removes slashes from title.
+
+    if there are no notes associated with a highlight, then no_notes_body will be used instead of body
 
     :return: list containing two strings: [formatted title, formatted body]
     """
@@ -43,14 +45,15 @@ def format_data(title: str, body: str, dat: Dict[str, str]) -> List[str]:
         return ret
 
     pre_format = title.replace("{title}", remove_slashes(dat["title"]))
-    # todo: use different body format depending on whether there are notes. also add config for it
-    return [remove_illegal_title_chars(pre_format.format(**dat)), body.format(**dat)]
+    return [remove_illegal_title_chars(pre_format.format(**dat)),
+            body.format(**dat) if no_notes_body and len(dat["notes"]) > 0 else no_notes_body.format(**dat)]
 
 
-def make_format_dict(data: Dict[str, str], calibre_library: str) -> Dict[str, str]:
+def make_format_dict(data: Dict[str, str], calibre_library: str, book_titles: Dict[int, str]) -> Dict[str, str]:
     """
     :param data: json object of a calibre highlight
     :param calibre_library: name of the calibre library, to make a url to the highlight
+    :param book_titles: dictionary mapping book ids to their titles
     :return:
     """
 
@@ -78,8 +81,8 @@ def make_format_dict(data: Dict[str, str], calibre_library: str) -> Dict[str, st
     local = time.localtime()
 
     format_options = {
-        # todo: convert book id to title
-        "title": data["book_id"],  # title of book
+        "title": book_titles.get(int(data["book_id"]), "No Title"),  # title of book
+        # todo: add option for author of book
         "highlight": data["highlighted_text"],  # highlighted text
         "blockquote": format_blockquote(data["highlighted_text"]),  # block-quoted highlight
         "notes": data["notes"] if "notes" in data else "",  # user's notes on this highlight
@@ -115,6 +118,7 @@ class HighlightSender:
         self.title_format = title_default_format
         self.body_format = body_default_format
         self.no_notes_format = no_notes_default_format
+        self.book_titles = {}
 
         # highlight send condition variable
         # highlights json object variable
@@ -137,6 +141,12 @@ class HighlightSender:
         """
         self.no_notes_format = no_notes_format
 
+    def set_book_titles(self, book_titles: Dict[int, str]):
+        """
+        :param book_titles: dictionary of {book_id: book_title}, to be used for note formatting
+        """
+        self.book_titles = book_titles
+
     def send(self, condition: Callable[[Any], bool] = lambda x: True):
         """
         sends highlights to obsidian. currently uses the annotations.calibre_annotation_collection
@@ -157,8 +167,8 @@ class HighlightSender:
             if not condition(highlight):
                 continue
 
-            dat = make_format_dict(highlight, self.library_name)
-            formatted = format_data(self.title_format, self.body_format, dat)
+            dat = make_format_dict(highlight, self.library_name, self.book_titles)
+            formatted = format_data(dat, self.title_format, self.body_format, self.no_notes_format)
 
             obsidian_data: Dict[str, str] = {
                 "vault": self.vault_name,

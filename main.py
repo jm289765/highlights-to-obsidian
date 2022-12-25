@@ -21,6 +21,9 @@ class MainDialog(QDialog):
         self.l = QVBoxLayout()
         self.setLayout(self.l)
 
+        self.debug_label = QLabel("Debug info here")
+        self.l.addWidget(self.debug_label)
+
         self.conf_button = QPushButton(
             'Configure this plugin', self)
         self.conf_button.clicked.connect(self.config)
@@ -131,7 +134,8 @@ class MainDialog(QDialog):
         sender.set_vault(prefs["vault_name"])
         sender.set_title_format(prefs["title_format"])
         sender.set_body_format(prefs["body_format"])
-        sender.set_no_notes_format("")  # todo: implement this
+        sender.set_no_notes_format(prefs["no_notes_format"])
+        sender.set_book_titles(self.book_ids_to_titles())
         sender.send(condition=highlight_send_condition)
 
         # updating prefs might belong in menu_button.py's apply_settings function, idk
@@ -147,10 +151,21 @@ class MainDialog(QDialog):
         sender.set_vault(prefs["vault_name"])
         sender.set_title_format(prefs["title_format"])
         sender.set_body_format(prefs["body_format"])
-        sender.set_no_notes_format("")  # todo: implement this
+        sender.set_no_notes_format(prefs["no_notes_format"])  # todo: implement this
+        sender.set_book_titles(self.book_ids_to_titles())
+        # todo: have send_all_highlights and send_new_highlights use mostly the same function
         sender.send()
 
         # updating prefs might belong in menu_button.py's apply_settings function, idk
         prefs["last_send_time"] = strftime("%Y-%m-%d %H:%M:%S", localtime())
 
         # todo: add something to tell the user that highlights have been sent
+
+    def book_ids_to_titles(self):
+        ret = {}
+        db = self.db.new_api
+
+        for book_id, title in db.all_field_for('title', db.all_book_ids()).items():
+            ret[book_id] = title
+
+        return ret
