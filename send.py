@@ -70,6 +70,7 @@ def make_format_dict(data: Dict[str, str], calibre_library: str, book_titles: Di
     # where the 8 at the start represents a page number or section or something. instead, it opens
     # the book to the beginning instead of to the highlight. this seems to be a problem of calibre not
     # putting the right location data in its exported annotations.
+    # todo: fix calibre:// urls not opening to the correct location in the book
     url_format = "calibre://view-book/{library}/{book_id}/{book_format}?open_at=epubcfi({location})"
     url_args = {
         "library": calibre_library.replace(" ", "_"),
