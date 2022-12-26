@@ -1,5 +1,6 @@
 from qt.core import QDialog, QVBoxLayout, QPushButton, QMessageBox, QLabel
 from calibre.gui2 import info_dialog
+from calibre.library import current_library_name
 from calibre_plugins.highlights_to_obsidian.config import prefs
 from calibre_plugins.highlights_to_obsidian.send import HighlightSender
 from time import strptime, strftime, localtime, mktime
@@ -26,15 +27,23 @@ class MainDialog(QDialog):
         self.l = QVBoxLayout()
         self.setLayout(self.l)
 
+        # button to open config
         self.conf_button = QPushButton(
             'Configure this plugin', self)
         self.conf_button.clicked.connect(self.config)
         self.l.addWidget(self.conf_button)
 
+        # test button
+        self.test_button = QPushButton("Test", self)
+        self.test_button.clicked.connect(self.test)
+        self.l.addWidget(self.test_button)
+
+        # send new highlights button
         self.send_button = QPushButton("Send new highlights to obsidian", self)
         self.send_button.clicked.connect(self.send_new_highlights)
         self.l.addWidget(self.send_button)
 
+        # send all highlights button
         self.send_all_button = QPushButton("Send all highlights to obsidian", self)
         # todo: add a confirmation dialog to this
         self.send_all_button.clicked.connect(self.send_all_highlights)
@@ -119,7 +128,10 @@ class MainDialog(QDialog):
     def send_highlights(self, condition=lambda x: True):
         def make_sender() -> HighlightSender:
             _sender = HighlightSender()
-            _sender.set_library("Calibre Library")  # todo: don't hardcode this
+            # this might not work if the current library name has characters that don't work in urls.
+            # but if do hex encoding when it's not needed, i'll make links hard to read.
+            # todo: add hex encoding, but only when necessary https://manual.calibre-ebook.com/url_scheme.html
+            _sender.set_library(current_library_name())
             _sender.set_vault(prefs["vault_name"])
             _sender.set_title_format(prefs["title_format"])
             _sender.set_body_format(prefs["body_format"])
@@ -165,3 +177,6 @@ class MainDialog(QDialog):
             ret[book_id] = title
 
         return ret
+
+    def test(self):
+        info_dialog(self, "Test", "Test info dialog", show=True)
