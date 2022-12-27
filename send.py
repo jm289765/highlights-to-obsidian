@@ -65,18 +65,23 @@ def make_format_dict(data: Dict[str, str], calibre_library: str, book_titles: Di
     h_time = datetime.datetime.strptime(data["timestamp"][:-5], "%Y-%m-%dT%H:%M:%S")
 
     # format is calibre://view-book/<Library_Name>/<book_id>/<book_format>?open_at=<location>
-    # for example, calibre://view-book/Calibre_Library/39/EPUB?open_at=epubcfi(/2/4/84/1:184)
-    # unfortunately, this doesn't work. the location is missing a number. it should be /8/2/4/84/1:184,
-    # where the 8 at the start represents a page number or section or something. instead, it opens
-    # the book to the beginning instead of to the highlight. this seems to be a problem of calibre not
-    # putting the right location data in its exported annotations.
-    # todo: fix calibre:// urls not opening to the correct location in the book
+    # for example, calibre://view-book/Calibre_Library/39/EPUB?open_at=epubcfi(/8/2/4/84/1:184)
+    # todo: right now, opening two different links from the same book opens two different viewer windows,
+    # make it instead go to the right location in the already-open window
     url_format = "calibre://view-book/{library}/{book_id}/{book_format}?open_at=epubcfi({location})"
     url_args = {
         "library": calibre_library.replace(" ", "_"),
         "book_id": data["book_id"],
         "book_format": data["format"],
-        "location": data["start_cfi"],
+        # the algorithm for this, "/{2 * (spine_index + 1)}", is taken from:
+        # read_book.annotations.AnnotationsManager.cfi_for_highlight(uuid, spine_index)
+        # https://github.com/kovidgoyal/calibre/blob/master/src/pyj/read_book/annotations.pyj#L249
+        # i didn't import the algorithm from calibre because it was too inconvenient to figure out how
+        #
+        # unfortunately, this doesn't work without the spine index thing. the location is missing a number.
+        # it should be, for example /8/2/4/84/1:184, but instead, data["start_cfi"] is /2/4/84/1:184.
+        # the first number in the cfi address has to be manually calculated.
+        "location": "/" + str((int(data["spine_index"]) + 1) * 2) + data["start_cfi"],
     }
 
     local = time.localtime()

@@ -179,4 +179,5 @@ class MainDialog(QDialog):
         return ret
 
     def test(self):
-        info_dialog(self, "Test", "Test info dialog", show=True)
+        db = self.db.new_api
+        info_dialog(self, "Test", str(db.all_annotations()), show=True)
