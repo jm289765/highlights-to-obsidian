@@ -137,17 +137,18 @@ class MainDialog(QDialog):
             _sender.set_body_format(prefs["body_format"])
             _sender.set_no_notes_format(prefs["no_notes_format"])
             _sender.set_book_titles(self.book_ids_to_titles())
+            db = self.db.new_api
+            _sender.set_annotations_list(db.all_annotations())
             return _sender
 
         sender = make_sender()
-        sender.send(condition=condition)
+        amt = sender.send(condition=condition)
 
         # updating prefs might belong in menu_button.py's apply_settings function, idk
         prefs["last_send_time"] = strftime("%Y-%m-%d %H:%M:%S", localtime())
 
-        info_dialog(self, "Highlights Sent",
-                    "New highlights have been sent to obsidian.",
-                    show=True)
+        info = f"Success: {amt} highlight{' has' if amt == 1 else 's have'} been sent to obsidian."
+        info_dialog(self, "Highlights Sent", info, show=True)
 
     def send_new_highlights(self):
         last_send_time = mktime(strptime(prefs["last_send_time"], "%Y-%m-%d %H:%M:%S"))
@@ -161,7 +162,7 @@ class MainDialog(QDialog):
             # then save that list in prefs, then check if the highlight is in that list
 
             # calibre's time format example: "2022-09-10T20:32:08.820Z"
-            highlight_time = mktime(strptime(highlight["timestamp"][:-5], "%Y-%m-%dT%H:%M:%S"))
+            highlight_time = mktime(strptime(highlight["annotation"]["timestamp"][:19], "%Y-%m-%dT%H:%M:%S"))
             return highlight_time > last_send_time
 
         self.send_highlights(highlight_send_condition)

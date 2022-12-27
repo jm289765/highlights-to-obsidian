@@ -5,7 +5,7 @@ from urllib.parse import urlencode, quote
 import datetime
 
 
-# avoid importing anything from the calibre plugin here
+# avoid importing anything from calibre or the highlights_to_obsidian plugin here
 library_default_name = "Calibre Library"
 vault_default_name = "Test"
 title_default_format = "Books/{title}"
@@ -49,7 +49,7 @@ def format_data(dat: Dict[str, str], title: str, body: str, no_notes_body: str =
             body.format(**dat) if no_notes_body and len(dat["notes"]) > 0 else no_notes_body.format(**dat)]
 
 
-def make_format_dict(data: Dict[str, str], calibre_library: str, book_titles: Dict[int, str]) -> Dict[str, str]:
+def make_format_dict(data, calibre_library: str, book_titles: Dict[int, str]) -> Dict:
     """
     :param data: json object of a calibre highlight
     :param calibre_library: name of the calibre library, to make a url to the highlight
@@ -60,9 +60,11 @@ def make_format_dict(data: Dict[str, str], calibre_library: str, book_titles: Di
     def format_blockquote(text: str) -> str:
         return "> " + text.replace("\n", "\n> ")
 
+    annot = data["annotation"]
+
     # calibre's time format example: "2022-09-10T20:32:08.820Z"
-    # "%Y-%m-%dT%H:%M:%S", take [:-5] of the timestamp to remove milliseconds
-    h_time = datetime.datetime.strptime(data["timestamp"][:-5], "%Y-%m-%dT%H:%M:%S")
+    # "%Y-%m-%dT%H:%M:%S", take [:19] of the timestamp to remove milliseconds
+    h_time = datetime.datetime.strptime(annot["timestamp"][:19], "%Y-%m-%dT%H:%M:%S")
 
     # format is calibre://view-book/<Library_Name>/<book_id>/<book_format>?open_at=<location>
     # for example, calibre://view-book/Calibre_Library/39/EPUB?open_at=epubcfi(/8/2/4/84/1:184)
@@ -81,7 +83,7 @@ def make_format_dict(data: Dict[str, str], calibre_library: str, book_titles: Di
         # unfortunately, this doesn't work without the spine index thing. the location is missing a number.
         # it should be, for example /8/2/4/84/1:184, but instead, data["start_cfi"] is /2/4/84/1:184.
         # the first number in the cfi address has to be manually calculated.
-        "location": "/" + str((int(data["spine_index"]) + 1) * 2) + data["start_cfi"],
+        "location": "/" + str((annot["spine_index"] + 1) * 2) + annot["start_cfi"],
     }
 
     local = time.localtime()
@@ -89,9 +91,9 @@ def make_format_dict(data: Dict[str, str], calibre_library: str, book_titles: Di
     format_options = {
         "title": book_titles.get(int(data["book_id"]), "No Title"),  # title of book
         # todo: add option for author of book
-        "highlight": data["highlighted_text"],  # highlighted text
-        "blockquote": format_blockquote(data["highlighted_text"]),  # block-quoted highlight
-        "notes": data["notes"] if "notes" in data else "",  # user's notes on this highlight
+        "highlight": annot["highlighted_text"],  # highlighted text
+        "blockquote": format_blockquote(annot["highlighted_text"]),  # block-quoted highlight
+        "notes": annot["notes"] if "notes" in annot else "",  # user's notes on this highlight
         "date": str(h_time.date()),  # date highlight was made
         "time": str(h_time.time()),  # time highlight was made
         "datetime": str(h_time),
@@ -105,7 +107,8 @@ def make_format_dict(data: Dict[str, str], calibre_library: str, book_titles: Di
         "year": str(h_time.year),
         "url": url_format.format(**url_args),  # calibre:// url to open ebook viewer to this highlight
         "bookid": data["book_id"],
-        "uuid": data["uuid"],  # highlight's ID in calibre
+        "uuid": annot["uuid"],  # highlight's ID in calibre
+        "sort_key": h_time.timestamp()  # used to determine order to send highlights in
     }
 
     return format_options
@@ -114,10 +117,6 @@ def make_format_dict(data: Dict[str, str], calibre_library: str, book_titles: Di
 class HighlightSender:
 
     def __init__(self):
-        # todo: remove this variable
-        self.calibre_annotations_path = \
-            r"C:\Users\Admin\Documents\Github\highlights-to-obsidian\annotations.calibre_annotation_collection"
-
         # set defaults
         self.library_name = library_default_name
         self.vault_name = vault_default_name
@@ -125,9 +124,7 @@ class HighlightSender:
         self.body_format = body_default_format
         self.no_notes_format = no_notes_default_format
         self.book_titles = {}
-
-        # highlight send condition variable
-        # highlights json object variable
+        self.annotations_list = []
 
     def set_library(self, library_name: str):
         self.library_name = library_name
@@ -153,6 +150,12 @@ class HighlightSender:
         """
         self.book_titles = book_titles
 
+    def set_annotations_list(self, annotations_list):
+        """
+        :param annotations_list: the object returned by calibre.db.cache.Cache.new_api's all_annotations() function
+        """
+        self.annotations_list = annotations_list
+
     def send(self, condition: Callable[[Any], bool] = lambda x: True):
         """
         sends highlights to obsidian. currently uses the annotations.calibre_annotation_collection
@@ -160,16 +163,14 @@ class HighlightSender:
 
         condition takes a highlight's json object and returns true if that highlight should be sent to obsidian.
         """
-        # encoding has to be 'utf-8-sig' because calibre annotation files use BOM
-        # todo: get annotations directly from calibre
-        file = open(self.calibre_annotations_path, encoding='utf-8-sig')
 
-        from json import load
-        annotations = load(file, parse_int=str, parse_float=str, parse_constant=str)
-
-        highlights = filter(lambda a: a["type"] == "highlight", annotations["annotations"])
+        highlights = filter(lambda a: a.get("annotation", {}).get("type") == "highlight", self.annotations_list)  # annotations["annotations"])
+        dats = []  # List[List[obsidian_data, sort_key]]
 
         for highlight in highlights:
+            if highlight["annotation"].get("removed", False):
+                continue  # don't try to send highlights that have been removed
+
             if not condition(highlight):
                 continue
 
@@ -183,9 +184,12 @@ class HighlightSender:
                 "append": "true",
             }
 
-            send_item_to_obsidian(obsidian_data)
+            dats.append([obsidian_data, dat["sort_key"]])
 
-        # todo: return number of highlights sent, and use that as output for main.py
+        dats.sort(key=lambda d: d[1])
+        for d in dats:
+            # todo: wait for a response from obsidian before sending the next, so that they get processed in order
+            # alternatively, merge all of a book's highlights into one message
+            send_item_to_obsidian(d[0])
 
-
-x = HighlightSender()
+        return len(dats)
