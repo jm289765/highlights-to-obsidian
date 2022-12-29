@@ -34,11 +34,9 @@ class MenuButton(InterfaceAction):
         # self.qaction.setIcon(icon)
         self.qaction.triggered.connect(self.show_dialog)
 
-        # todo: send new highlights on startup. add option to disable this.
-
     def show_dialog(self):
         # The base plugin object defined in __init__.py
-        base_plugin_object = self.interface_action_base_plugin  # this is only referenced here? never defined?
+        base_plugin_object = self.interface_action_base_plugin
         # Show the config dialog
         # The config dialog can also be shown from within
         # Preferences->Plugins, which is why the do_user_config

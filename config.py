@@ -20,11 +20,6 @@ prefs.defaults['body_format'] = body_default_format
 prefs.defaults['no_notes_format'] = no_notes_default_format
 
 
-# todo: keep track of uuids of highlights that have been sent
-# this can be done retroactively by saving the uuids of all highlights
-# that were made before last_send_time
-
-
 class ConfigWidget(QWidget):
 
     def __init__(self):
