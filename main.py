@@ -49,6 +49,9 @@ class MainDialog(QDialog):
         self.send_all_button.clicked.connect(self.send_all_highlights)
         self.l.addWidget(self.send_all_button)
 
+        # todo: add button to re-send previous batch of highlights
+        # will need a variable in prefs to store the previous last_send_time
+
         self.resize(self.sizeHint())
 
     # todo: remove unused functions: marked(), view(), update_metadata()

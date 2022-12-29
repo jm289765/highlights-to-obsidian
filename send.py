@@ -14,6 +14,12 @@ no_notes_default_format = "\n[Highlighted]({url}) on {date} at {time} UTC {timeo
 
 
 def send_item_to_obsidian(obsidian_data: Dict[str, str]) -> None:
+    """
+    :param obsidian_data: should contain keys and values for 'vault', 'file', 'content', and anything
+    else you want to put into the obsidian://new url
+
+    for reference, see https://help.obsidian.md/Advanced+topics/Using+obsidian+URI#Action+new
+    """
     encoded_data = urlencode(obsidian_data, quote_via=quote)
     uri = "obsidian://new?" + encoded_data
     webbrowser.open(uri)
@@ -156,6 +162,23 @@ class HighlightSender:
         """
         self.annotations_list = annotations_list
 
+    def make_obsidian_data(self, note_file, note_content):
+        """
+        :param note_file: title of this note, including relative path
+        :param note_content: body of this note
+        :return: dictionary which includes vault name, note file/title, note contents.
+        return value can be used as input for send_item_to_obsidian().
+        """
+
+        obsidian_data: Dict[str, str] = {
+            "vault": self.vault_name,
+            "file": note_file,
+            "content": note_content,
+            "append": "true",
+        }
+
+        return obsidian_data
+
     def send(self, condition: Callable[[Any], bool] = lambda x: True):
         """
         sends highlights to obsidian. currently uses the annotations.calibre_annotation_collection
@@ -177,19 +200,42 @@ class HighlightSender:
             dat = make_format_dict(highlight, self.library_name, self.book_titles)
             formatted = format_data(dat, self.title_format, self.body_format, self.no_notes_format)
 
-            obsidian_data: Dict[str, str] = {
-                "vault": self.vault_name,
-                "file": formatted[0],
-                "content": formatted[1],
-                "append": "true",
-            }
+            dats.append([formatted, dat["sort_key"]])
 
-            dats.append([obsidian_data, dat["sort_key"]])
+        def merge_highlights(data):
+            """
+            returns a dictionary with formatted highlights merged into a single string for each
+            unique formatted note title found in dats
 
-        dats.sort(key=lambda d: d[1])
-        for d in dats:
-            # todo: wait for a response from obsidian before sending the next, so that they get processed in order
-            # alternatively, merge all of a book's highlights into one message
-            send_item_to_obsidian(d[0])
+            for reference, format_data() output is a list of [title, body]
+
+            :param data: List[List[format_data() output, sort_key]]
+            :return: list of obsidian_data objects, where each unique title from the input is merged into a
+            single, sorted item in the output.
+            """
+            # this function has too many nested index lookups, it could use some simplification
+
+            books = {}  # dict[str, list[list[obsidian_data object, sort_key]]
+            for d in data:
+                format_dat = d[0]  # list[title, body]
+                body_and_sort = [format_dat[1], d[1]]  # [note body, sort key]
+                note_title = format_dat[0]
+                if note_title in books:
+                    books[note_title].append(body_and_sort)
+                else:
+                    books[note_title] = [body_and_sort]
+
+            # now, books contains lists of unsorted [note body, sort key] objects
+            ret = []
+
+            for key in books:
+                # sort each book's highlights and then merge them into a single string
+                books[key].sort(key=lambda body_sort: body_sort[1])
+                ret.append(self.make_obsidian_data(key, "".join([a[0] for a in books[key]])))
+
+            return ret
+
+        for obsidian_dat in merge_highlights(dats):
+            send_item_to_obsidian(obsidian_dat)
 
         return len(dats)
