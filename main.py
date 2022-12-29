@@ -43,8 +43,10 @@ class MainDialog(QDialog):
         self.send_all_button.clicked.connect(self.send_all_highlights)
         self.l.addWidget(self.send_all_button)
 
-        # todo: add button to re-send previous batch of highlights
-        # will need a variable in prefs to store the previous last_send_time
+        # resend previously sent highlights button
+        self.resend_button = QPushButton("Resend previously sent highlights", self)
+        self.resend_button.clicked.connect(self.resend_highlights)
+        self.l.addWidget(self.resend_button)
 
         self.resize(self.sizeHint())
 
@@ -52,7 +54,14 @@ class MainDialog(QDialog):
         self.do_user_config(parent=self)
         # if any config changes require updating self, do it here
 
-    def send_highlights(self, condition=lambda x: True):
+    def send_highlights(self, condition=lambda x: True, update_send_time=True) -> int:
+        """
+
+        :param condition: condition for sending a highlight
+        :param update_send_time: whether or not to update prefs["last_send_time"]
+        :return: number of highlights that were sent
+        """
+
         def make_sender() -> HighlightSender:
             _sender = HighlightSender()
             # this might not work if the current library name has characters that don't work in urls.
@@ -71,11 +80,18 @@ class MainDialog(QDialog):
         sender = make_sender()
         amt = sender.send(condition=condition)
 
-        # updating prefs might belong in menu_button.py's apply_settings function, idk
-        prefs["last_send_time"] = strftime("%Y-%m-%d %H:%M:%S", localtime())
+        if amt > 0:
+            # don't update send time if no highlights were actually sent. this makes sure you
+            # won't mess up your prev_send if you accidentally send new highlights twice in a row.
+            if update_send_time:
+                prefs["last_send_time"] = strftime("%Y-%m-%d %H:%M:%S", localtime())
 
-        info = f"Success: {amt} highlight{' has' if amt == 1 else 's have'} been sent to obsidian."
-        info_dialog(self, "Highlights Sent", info, show=True)
+            info = f"Success: {amt} highlight{' has' if amt == 1 else 's have'} been sent to obsidian."
+            info_dialog(self, "Highlights Sent", info, show=True)
+        else:
+            info_dialog(self, "No Highlights Sent", "No highlights to send.", show=True)
+
+        return amt
 
     def send_new_highlights(self):
         last_send_time = mktime(strptime(prefs["last_send_time"], "%Y-%m-%d %H:%M:%S"))
@@ -92,7 +108,10 @@ class MainDialog(QDialog):
             highlight_time = mktime(strptime(highlight["annotation"]["timestamp"][:19], "%Y-%m-%dT%H:%M:%S"))
             return highlight_time > last_send_time
 
-        self.send_highlights(highlight_send_condition)
+        new_prev_send = prefs["last_send_time"]
+        amt_sent = self.send_highlights(highlight_send_condition)
+        if amt_sent > 0:
+            prefs["prev_send"] = new_prev_send
 
     def send_all_highlights(self):
         confirm = QMessageBox()
@@ -103,6 +122,35 @@ class MainDialog(QDialog):
 
         if confirmed == QMessageBox.Yes:
             self.send_highlights()
+
+    def resend_highlights(self):
+        """
+        this function is mainly intended to be used in case obsidian fails to receive the highlights that
+        were sent to it. this sometimes happens when the obsidian program isn't open to the right vault
+        or isn't open at all when highlights are sent. it also sometimes happens for reasons unknown to me.
+        """
+        prev_send = prefs['prev_send']
+        if prev_send is None:
+            info_dialog(self, "Cannot resend highlights", "No highlights were previously sent", show=True)
+            return
+
+        # prev_send is the date/time of the send time before last_send_time.
+        # send highlights between then and last_send_time.
+        prev_send_time = mktime(strptime(prefs["prev_send"], "%Y-%m-%d %H:%M:%S"))
+        last_send_time = mktime(strptime(prefs["last_send_time"], "%Y-%m-%d %H:%M:%S"))
+
+        def highlight_send_condition(highlight) -> bool:
+            """
+            :param highlight: json object containing a calibre highlight's data
+            :return: true if the highlight was made between prev send time and most recent send time
+            """
+            # alternatively, store the uuids of previously sent highlights in prefs, and only send those
+
+            # calibre's time format example: "2022-09-10T20:32:08.820Z"
+            highlight_time = mktime(strptime(highlight["annotation"]["timestamp"][:19], "%Y-%m-%dT%H:%M:%S"))
+            return prev_send_time < highlight_time < last_send_time
+
+        self.send_highlights(highlight_send_condition, update_send_time=False)
 
     def book_ids_to_titles_authors(self):
 

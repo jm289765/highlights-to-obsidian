@@ -4,6 +4,8 @@ from calibre_plugins.highlights_to_obsidian.main import MainDialog
 
 class MenuButton(InterfaceAction):
     name = 'Send Highlights to Obsidian'
+    # todo: add InterfaceAction for sending new highlights
+    # and possibly for sending all and resending
 
     # Declare the main action associated with this plugin
     # The keyboard shortcut can be None if you dont want to use a keyboard

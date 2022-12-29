@@ -18,6 +18,7 @@ prefs.defaults['vault_name'] = vault_default_name
 prefs.defaults['title_format'] = title_default_format
 prefs.defaults['body_format'] = body_default_format
 prefs.defaults['no_notes_format'] = no_notes_default_format
+prefs.defaults['prev_send'] = None  # the send time before last_send_time
 
 
 class ConfigWidget(QWidget):
@@ -88,7 +89,7 @@ class ConfigWidget(QWidget):
         self.time_format_label = QLabel("Time must be formatted: \"YYYY-MM-DD hh:mm:ss\"")
         self.l.addWidget(self.time_format_label)
 
-        # todo: add button to set time to time.localtime()
+        # todo: add button to set time to time.localtime() or time.gmtime()
 
     def save_settings(self):
         prefs['vault_name'] = self.vault_input.text()
