@@ -1,6 +1,6 @@
 import time
 import webbrowser
-from typing import Dict, List, Callable, Any
+from typing import Dict, List, Callable, Any, Tuple
 from urllib.parse import urlencode, quote
 import datetime
 
@@ -8,7 +8,7 @@ import datetime
 # avoid importing anything from calibre or the highlights_to_obsidian plugin here
 library_default_name = "Calibre Library"
 vault_default_name = "Test"
-title_default_format = "Books/{title}"
+title_default_format = "Books/{title} by {authors}"
 body_default_format = "\n[Highlighted]({url}) on {date} at {time} UTC {timeoffset}:\n{blockquote}\n\n{notes}\n\n---\n"
 no_notes_default_format = "\n[Highlighted]({url}) on {date} at {time} UTC {timeoffset}:\n{blockquote}\n\n---\n"
 
@@ -55,11 +55,11 @@ def format_data(dat: Dict[str, str], title: str, body: str, no_notes_body: str =
             body.format(**dat) if no_notes_body and len(dat["notes"]) > 0 else no_notes_body.format(**dat)]
 
 
-def make_format_dict(data, calibre_library: str, book_titles: Dict[int, str]) -> Dict:
+def make_format_dict(data, calibre_library: str, book_titles_authors: Dict[int, Dict[str, str]]) -> Dict:
     """
     :param data: json object of a calibre highlight
     :param calibre_library: name of the calibre library, to make a url to the highlight
-    :param book_titles: dictionary mapping book ids to their titles
+    :param book_titles_authors: dictionary mapping book ids to their titles and authors
     :return:
     """
 
@@ -93,10 +93,11 @@ def make_format_dict(data, calibre_library: str, book_titles: Dict[int, str]) ->
     }
 
     local = time.localtime()
+    title_authors = book_titles_authors.get(int(data["book_id"]), {})
 
     format_options = {
-        "title": book_titles.get(int(data["book_id"]), "No Title"),  # title of book
-        # todo: add option for author of book, and add it to the default title format
+        "title": title_authors.get("title", "Untitled"),  # title of book
+        "authors": title_authors.get("authors", ("Unknown",)),  # title of book
         "highlight": annot["highlighted_text"],  # highlighted text
         "blockquote": format_blockquote(annot["highlighted_text"]),  # block-quoted highlight
         "notes": annot["notes"] if "notes" in annot else "",  # user's notes on this highlight
@@ -129,7 +130,7 @@ class HighlightSender:
         self.title_format = title_default_format
         self.body_format = body_default_format
         self.no_notes_format = no_notes_default_format
-        self.book_titles = {}
+        self.book_titles_authors = {}
         self.annotations_list = []
 
     def set_library(self, library_name: str):
@@ -150,11 +151,13 @@ class HighlightSender:
         """
         self.no_notes_format = no_notes_format
 
-    def set_book_titles(self, book_titles: Dict[int, str]):
+    def set_book_titles_authors(self, book_titles_authors: Dict[int, Dict[str, str]]):
         """
-        :param book_titles: dictionary of {book_id: book_title}, to be used for note formatting
+        :param book_titles_authors: dictionary of {book_id: dict of {"title": book_title, "authors": book_authors}},
+         to be used for note formatting
         """
-        self.book_titles = book_titles
+
+        self.book_titles_authors = book_titles_authors
 
     def set_annotations_list(self, annotations_list):
         """
@@ -197,7 +200,7 @@ class HighlightSender:
             if not condition(highlight):
                 continue
 
-            dat = make_format_dict(highlight, self.library_name, self.book_titles)
+            dat = make_format_dict(highlight, self.library_name, self.book_titles_authors)
             formatted = format_data(dat, self.title_format, self.body_format, self.no_notes_format)
 
             dats.append([formatted, dat["sort_key"]])

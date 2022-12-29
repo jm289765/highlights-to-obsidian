@@ -63,7 +63,7 @@ class MainDialog(QDialog):
             _sender.set_title_format(prefs["title_format"])
             _sender.set_body_format(prefs["body_format"])
             _sender.set_no_notes_format(prefs["no_notes_format"])
-            _sender.set_book_titles(self.book_ids_to_titles())
+            _sender.set_book_titles_authors(self.book_ids_to_titles_authors())
             db = self.db.new_api
             _sender.set_annotations_list(db.all_annotations())
             return _sender
@@ -104,11 +104,24 @@ class MainDialog(QDialog):
         if confirmed == QMessageBox.Yes:
             self.send_highlights()
 
-    def book_ids_to_titles(self):
+    def book_ids_to_titles_authors(self):
+
+        def format_authors(authors) -> str:
+            """
+            :param authors: Tuple[str] with author names in it
+            :return: author names merged into a single string
+            """
+            auths = list(authors)
+            if len(auths) > 1:
+                auths[-1] = "and " + auths[-1]
+
+            return ", ".join(auths) if len(auths) > 2 else " " .join(auths)
+
         ret = {}
         db = self.db.new_api
 
         for book_id, title in db.all_field_for('title', db.all_book_ids()).items():
-            ret[book_id] = title
+            authors = format_authors(db.field_for("authors", book_id))
+            ret[book_id] = {"title": title, "authors": authors}
 
         return ret
