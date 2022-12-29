@@ -96,7 +96,7 @@ def make_format_dict(data, calibre_library: str, book_titles: Dict[int, str]) ->
 
     format_options = {
         "title": book_titles.get(int(data["book_id"]), "No Title"),  # title of book
-        # todo: add option for author of book
+        # todo: add option for author of book, and add it to the default title format
         "highlight": annot["highlighted_text"],  # highlighted text
         "blockquote": format_blockquote(annot["highlighted_text"]),  # block-quoted highlight
         "notes": annot["notes"] if "notes" in annot else "",  # user's notes on this highlight
@@ -235,6 +235,7 @@ class HighlightSender:
 
             return ret
 
+        # todo: sometimes, if obsidian isn't already open, not all highlights get sent
         for obsidian_dat in merge_highlights(dats):
             send_item_to_obsidian(obsidian_dat)
 

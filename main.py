@@ -33,11 +33,6 @@ class MainDialog(QDialog):
         self.conf_button.clicked.connect(self.config)
         self.l.addWidget(self.conf_button)
 
-        # test button
-        self.test_button = QPushButton("Test", self)
-        self.test_button.clicked.connect(self.test)
-        self.l.addWidget(self.test_button)
-
         # send new highlights button
         self.send_button = QPushButton("Send new highlights to obsidian", self)
         self.send_button.clicked.connect(self.send_new_highlights)
@@ -45,7 +40,6 @@ class MainDialog(QDialog):
 
         # send all highlights button
         self.send_all_button = QPushButton("Send all highlights to obsidian", self)
-        # todo: add a confirmation dialog to this
         self.send_all_button.clicked.connect(self.send_all_highlights)
         self.l.addWidget(self.send_all_button)
 
@@ -101,7 +95,14 @@ class MainDialog(QDialog):
         self.send_highlights(highlight_send_condition)
 
     def send_all_highlights(self):
-        self.send_highlights()
+        confirm = QMessageBox()
+        confirm.setText("Are you sure you want to send ALL highlights to obsidian? This cannot be undone.")
+        confirm.setStandardButtons(QMessageBox.Yes | QMessageBox.No)
+        confirm.setIcon(QMessageBox.Question)
+        confirmed = confirm.exec()
+
+        if confirmed == QMessageBox.Yes:
+            self.send_highlights()
 
     def book_ids_to_titles(self):
         ret = {}
@@ -111,7 +112,3 @@ class MainDialog(QDialog):
             ret[book_id] = title
 
         return ret
-
-    def test(self):
-        db = self.db.new_api
-        info_dialog(self, "Test", str(db.all_annotations()), show=True)
