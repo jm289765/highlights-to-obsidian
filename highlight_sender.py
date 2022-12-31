@@ -1,13 +1,14 @@
 import time
 import webbrowser
-from typing import Dict, List, Callable, Any, Tuple
+from typing import Dict, List, Callable, Any
 from urllib.parse import urlencode, quote
 import datetime
 # avoid importing anything from calibre or the highlights_to_obsidian plugin here
 
 
+# might be better to move these into resource files
 library_default_name = "Calibre Library"
-vault_default_name = "Test"
+vault_default_name = "My Vault"
 title_default_format = "Books/{title} by {authors}"
 body_default_format = "\n[Highlighted]({url}) on {date} at {time} UTC {timeoffset}:\n{blockquote}\n\n{notes}\n\n---\n"
 no_notes_default_format = "\n[Highlighted]({url}) on {date} at {time} UTC {timeoffset}:\n{blockquote}\n\n---\n"
@@ -186,9 +187,6 @@ class HighlightSender:
 
     def send(self, condition: Callable[[Any], bool] = lambda x: True):
         """
-        sends highlights to obsidian. currently uses the annotations.calibre_annotation_collection
-        file to get highlight data.
-
         condition takes a highlight's json object and returns true if that highlight should be sent to obsidian.
         """
 

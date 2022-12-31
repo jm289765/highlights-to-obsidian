@@ -1,4 +1,0 @@
-Highlights to Obsidian
-======================
-
-Send e-book highlights from Calibre to Obsidian.md
