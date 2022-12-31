@@ -1,6 +1,6 @@
 import time
 
-from qt.core import QWidget, QVBoxLayout, QLabel, QLineEdit, QPlainTextEdit
+from qt.core import QWidget, QVBoxLayout, QLabel, QLineEdit, QPlainTextEdit, QPushButton
 from calibre.utils.config import JSONConfig
 from calibre_plugins.highlights_to_obsidian.send import (title_default_format, body_default_format,
                                                          vault_default_name, no_notes_default_format)
@@ -27,16 +27,17 @@ class ConfigWidget(QWidget):
         QWidget.__init__(self)
         self.l = QVBoxLayout()
         self.setLayout(self.l)
+        self.linebreak = "=" * 80
 
         # header
-        self.config_label = QLabel('Highlights to Obsidian Config')
+        self.config_label = QLabel('Highlights to Obsidian Config', self)
         self.l.addWidget(self.config_label)
         # this linebreak has to be long so that it expands the width of the config window
-        self.config_linebreak_label = QLabel("=" * 60)
+        self.config_linebreak_label = QLabel(self.linebreak, self)
         self.l.addWidget(self.config_linebreak_label)
 
         # obsidian vault name
-        self.vault_label = QLabel('Obsidian vault name:')
+        self.vault_label = QLabel('Obsidian vault name:', self)
         self.l.addWidget(self.vault_label)
 
         self.vault_input = QLineEdit(self)
@@ -46,7 +47,7 @@ class ConfigWidget(QWidget):
         self.vault_label.setBuddy(self.vault_input)
 
         # obsidian note title format
-        self.title_format_label = QLabel('Obsidian note title format:')
+        self.title_format_label = QLabel('Obsidian note title format:', self)
         self.l.addWidget(self.title_format_label)
 
         self.title_format_input = QLineEdit(self)
@@ -56,7 +57,7 @@ class ConfigWidget(QWidget):
         self.title_format_label.setBuddy(self.title_format_input)
 
         # obsidian note body format
-        self.body_format_label = QLabel('Obsidian note body format:')
+        self.body_format_label = QLabel('Obsidian note body format:', self)
         self.l.addWidget(self.body_format_label)
 
         self.body_format_input = QPlainTextEdit(self)
@@ -66,7 +67,8 @@ class ConfigWidget(QWidget):
         self.body_format_label.setBuddy(self.body_format_input)
 
         # obsidian no notes body format
-        self.no_notes_format_label = QLabel('Body format for highlights without notes (empty defaults to body format):')
+        self.no_notes_format_label = QLabel('Body format for highlights without notes (empty defaults to the above):',
+                                            self)
         self.l.addWidget(self.no_notes_format_label)
 
         self.no_notes_format_input = QPlainTextEdit(self)
@@ -75,10 +77,33 @@ class ConfigWidget(QWidget):
         self.l.addWidget(self.no_notes_format_input)
         self.no_notes_format_label.setBuddy(self.no_notes_format_input)
 
-        # todo: explain note formatting options
+        # note formatting info
+        format_info = "Notes sent to obsidian have the following formatting options. " + \
+                      "To use one, put it in curly brackets, as in {title} or {blockquote}."
+        self.note_format_label = QLabel(format_info, self)
+        self.l.addWidget(self.note_format_label)
+
+        # list of formatting options
+        format_options = [
+            "title", "authors",
+            "highlight", "blockquote",
+            "notes", "date",
+            "time", "datetime",
+            "timezone", "timeoffset",
+            "day", "month",
+            "year", "url",
+            "bookid", "uuid",
+        ]
+        f_opt_str = '"' + '", "'.join(format_options) + '"'
+        self.note_format_list_label = QLabel(f_opt_str, self)
+        self.l.addWidget(self.note_format_list_label)
+
+        # extra line break before time config
+        self.time_linebreak_label = QLabel(self.linebreak, self)
+        self.l.addWidget(self.time_linebreak_label)
 
         # time setting
-        self.time_label = QLabel('Last time highlights were sent:')
+        self.time_label = QLabel('Last time highlights were sent:', self)
         self.l.addWidget(self.time_label)
 
         self.time_input = QLineEdit(self)
@@ -86,10 +111,14 @@ class ConfigWidget(QWidget):
         self.l.addWidget(self.time_input)
         self.time_label.setBuddy(self.time_input)
 
+        # button to set time to now
+        self.set_time_now_button = QPushButton("Set last send time to now", self)
+        self.set_time_now_button.clicked.connect(self.set_time_now)
+        self.l.addWidget(self.set_time_now_button)
+
+        # time format info
         self.time_format_label = QLabel("Time must be formatted: \"YYYY-MM-DD hh:mm:ss\"")
         self.l.addWidget(self.time_format_label)
-
-        # todo: add button to set time to time.localtime() or time.gmtime()
 
     def save_settings(self):
         prefs['vault_name'] = self.vault_input.text()
@@ -97,3 +126,7 @@ class ConfigWidget(QWidget):
         prefs['body_format'] = self.body_format_input.toPlainText()
         prefs['no_notes_format'] = self.no_notes_format_input.toPlainText()
         prefs['last_send_time'] = self.time_input.text()
+
+    def set_time_now(self):
+        prefs["last_send_time"] = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
+        self.time_input.setText(prefs['last_send_time'])
