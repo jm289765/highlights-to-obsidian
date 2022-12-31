@@ -1,246 +1,141 @@
-import time
-import webbrowser
-from typing import Dict, List, Callable, Any, Tuple
-from urllib.parse import urlencode, quote
-import datetime
+from qt.core import QDialog, QVBoxLayout, QPushButton, QMessageBox, QLabel
+from calibre.gui2 import info_dialog
+from calibre.library import current_library_name
+from calibre_plugins.highlights_to_obsidian.config import prefs
+from calibre_plugins.highlights_to_obsidian.highlight_sender import HighlightSender
+from time import strptime, strftime, localtime, mktime
 
 
-# avoid importing anything from calibre or the highlights_to_obsidian plugin here
-library_default_name = "Calibre Library"
-vault_default_name = "Test"
-title_default_format = "Books/{title} by {authors}"
-body_default_format = "\n[Highlighted]({url}) on {date} at {time} UTC {timeoffset}:\n{blockquote}\n\n{notes}\n\n---\n"
-no_notes_default_format = "\n[Highlighted]({url}) on {date} at {time} UTC {timeoffset}:\n{blockquote}\n\n---\n"
-
-
-def send_item_to_obsidian(obsidian_data: Dict[str, str]) -> None:
+def send_highlights(parent, db, condition=lambda x: True, update_send_time=True) -> int:
     """
-    :param obsidian_data: should contain keys and values for 'vault', 'file', 'content', and anything
-    else you want to put into the obsidian://new url
-
-    for reference, see https://help.obsidian.md/Advanced+topics/Using+obsidian+URI#Action+new
-    """
-    encoded_data = urlencode(obsidian_data, quote_via=quote)
-    uri = "obsidian://new?" + encoded_data
-    webbrowser.open(uri)
-
-
-def format_data(dat: Dict[str, str], title: str, body: str, no_notes_body: str = None) -> List[str]:
-    """
-    apply string.format() to title and body with data values from dat. Also removes slashes from title.
-
-    if there are no notes associated with a highlight, then no_notes_body will be used instead of body
-
-    :return: list containing two strings: [formatted title, formatted body]
+    :param parent: QDialog or other window that is the parent of the info dialogs this function makes
+    :param db: calibre database: Cache().new_api
+    :param condition: condition for sending a highlight
+    :param update_send_time: whether or not to update prefs["last_send_time"]
+    :return: number of highlights that were sent
     """
 
-    def remove_slashes(text: str) -> str:
-        # remove slashes in the note's title, since slashes in obsidian note titles will specify a directory
-        return text.replace("/", "-").replace("\\", "-")
+    def make_sender() -> HighlightSender:
+        _sender = HighlightSender()
+        # this might not work if the current library name has characters that don't work in urls.
+        # but if do hex encoding when it's not needed, i'll make links hard to read.
+        # todo: add hex encoding, but only when necessary https://manual.calibre-ebook.com/url_scheme.html
+        _sender.set_library(current_library_name())
+        _sender.set_vault(prefs["vault_name"])
+        _sender.set_title_format(prefs["title_format"])
+        _sender.set_body_format(prefs["body_format"])
+        _sender.set_no_notes_format(prefs["no_notes_format"])
+        _sender.set_book_titles_authors(book_ids_to_titles_authors(db))
+        _sender.set_annotations_list(db.all_annotations())
+        return _sender
 
-    def remove_illegal_title_chars(text: str) -> str:
-        # illegal title characters characters: * " \ / < > : | ?
-        # but we won't remove slashes because they're used for putting the note in a folder
-        # these can be title characters, but will break Markdown links to the file: # ^ [ ]
-        illegals = '*"<>:|?#^[]'
-        ret = text
+    sender = make_sender()
+    amt = sender.send(condition=condition)
 
-        for c in illegals:
-            ret = ret.replace(c, "")
+    if amt > 0:
+        # don't update send time if no highlights were actually sent. this makes sure you
+        # won't mess up your prev_send if you accidentally send new highlights twice in a row.
+        if update_send_time:
+            prefs["last_send_time"] = strftime("%Y-%m-%d %H:%M:%S", localtime())
 
-        return ret
+        info = f"Success: {amt} highlight{' has' if amt == 1 else 's have'} been sent to obsidian."
+        info_dialog(parent, "Highlights Sent", info, show=True)
+    else:
+        info_dialog(parent, "No Highlights Sent", "No highlights to send.", show=True)
 
-    pre_format = title.replace("{title}", remove_slashes(dat["title"]))
-    return [remove_illegal_title_chars(pre_format.format(**dat)),
-            body.format(**dat) if no_notes_body and len(dat["notes"]) > 0 else no_notes_body.format(**dat)]
+    return amt
 
 
-def make_format_dict(data, calibre_library: str, book_titles_authors: Dict[int, Dict[str, str]]) -> Dict:
+def send_new_highlights(parent, db):
     """
-    :param data: json object of a calibre highlight
-    :param calibre_library: name of the calibre library, to make a url to the highlight
-    :param book_titles_authors: dictionary mapping book ids to their titles and authors
-    :return:
+    :param parent: QDialog or other window that is the parent of the info dialogs this function makes
+    :param db: calibre database: Cache().new_api
     """
+    last_send_time = mktime(strptime(prefs["last_send_time"], "%Y-%m-%d %H:%M:%S"))
 
-    def format_blockquote(text: str) -> str:
-        return "> " + text.replace("\n", "\n> ")
-
-    annot = data["annotation"]
-
-    # calibre's time format example: "2022-09-10T20:32:08.820Z"
-    # "%Y-%m-%dT%H:%M:%S", take [:19] of the timestamp to remove milliseconds
-    h_time = datetime.datetime.strptime(annot["timestamp"][:19], "%Y-%m-%dT%H:%M:%S")
-
-    # format is calibre://view-book/<Library_Name>/<book_id>/<book_format>?open_at=<location>
-    # for example, calibre://view-book/Calibre_Library/39/EPUB?open_at=epubcfi(/8/2/4/84/1:184)
-    # todo: right now, opening two different links from the same book opens two different viewer windows,
-    # make it instead go to the right location in the already-open window
-    url_format = "calibre://view-book/{library}/{book_id}/{book_format}?open_at=epubcfi({location})"
-    url_args = {
-        "library": calibre_library.replace(" ", "_"),
-        "book_id": data["book_id"],
-        "book_format": data["format"],
-        # the algorithm for this, "/{2 * (spine_index + 1)}", is taken from:
-        # read_book.annotations.AnnotationsManager.cfi_for_highlight(uuid, spine_index)
-        # https://github.com/kovidgoyal/calibre/blob/master/src/pyj/read_book/annotations.pyj#L249
-        # i didn't import the algorithm from calibre because it was too inconvenient to figure out how
-        #
-        # unfortunately, this doesn't work without the spine index thing. the location is missing a number.
-        # it should be, for example /8/2/4/84/1:184, but instead, data["start_cfi"] is /2/4/84/1:184.
-        # the first number in the cfi address has to be manually calculated.
-        "location": "/" + str((annot["spine_index"] + 1) * 2) + annot["start_cfi"],
-    }
-
-    local = time.localtime()
-    title_authors = book_titles_authors.get(int(data["book_id"]), {})
-
-    format_options = {
-        # if you add a key to this dict, also update the format_options local variable in config.py
-        "title": title_authors.get("title", "Untitled"),  # title of book
-        "authors": title_authors.get("authors", ("Unknown",)),  # title of book
-        "highlight": annot["highlighted_text"],  # highlighted text
-        "blockquote": format_blockquote(annot["highlighted_text"]),  # block-quoted highlight
-        "notes": annot["notes"] if "notes" in annot else "",  # user's notes on this highlight
-        "date": str(h_time.date()),  # date highlight was made
-        "time": str(h_time.time()),  # time highlight was made
-        "datetime": str(h_time),
-        # calibre uses local time when making annotations. see function "render_timestamp"
-        # https://github.com/kovidgoyal/calibre/blob/master/src/calibre/gui2/library/annotations.py#L34
-        # todo: timezone currently displays "Coordinated Universal Time" instead of the abbreviation, "UTC"
-        "timezone": local.tm_zone,
-        "timeoffset": ("-" if local.tm_gmtoff < 0 else "+") + str(local.tm_gmtoff // 3600) + ":00",
-        "day": str(h_time.day),
-        "month": str(h_time.month),
-        "year": str(h_time.year),
-        "url": url_format.format(**url_args),  # calibre:// url to open ebook viewer to this highlight
-        "bookid": data["book_id"],
-        "uuid": annot["uuid"],  # highlight's ID in calibre
-        "sort_key": h_time.timestamp()  # used to determine order to send highlights in
-    }
-
-    return format_options
-
-
-class HighlightSender:
-
-    def __init__(self):
-        # set defaults
-        self.library_name = library_default_name
-        self.vault_name = vault_default_name
-        self.title_format = title_default_format
-        self.body_format = body_default_format
-        self.no_notes_format = no_notes_default_format
-        self.book_titles_authors = {}
-        self.annotations_list = []
-
-    def set_library(self, library_name: str):
-        self.library_name = library_name
-
-    def set_vault(self, vault_name: str):
-        self.vault_name = vault_name
-
-    def set_title_format(self, title_format: str):
-        self.title_format = title_format
-
-    def set_body_format(self, body_format: str):
-        self.body_format = body_format
-
-    def set_no_notes_format(self, no_notes_format: str):
+    def highlight_send_condition(highlight) -> bool:
         """
-        sets the body format to be used for highlights that the user didn't make notes for
+        :param highlight: json object containing a calibre highlight's data
+        :return: true if the highlight was made after last send time, else false
         """
-        self.no_notes_format = no_notes_format
+        # an alternative method is to save the uuid of each highlight as it's sent,
+        # then save that list in prefs, then check if the highlight is in that list
 
-    def set_book_titles_authors(self, book_titles_authors: Dict[int, Dict[str, str]]):
+        # calibre's time format example: "2022-09-10T20:32:08.820Z"
+        highlight_time = mktime(strptime(highlight["annotation"]["timestamp"][:19], "%Y-%m-%dT%H:%M:%S"))
+        return highlight_time > last_send_time
+
+    new_prev_send = prefs["last_send_time"]
+    amt_sent = send_highlights(parent, db, highlight_send_condition)
+    if amt_sent > 0:
+        prefs["prev_send"] = new_prev_send
+
+
+def send_all_highlights(parent, db):
+    """
+    :param parent: QDialog or other window that is the parent of the info dialogs this function makes
+    :param db: calibre database: Cache().new_api
+    """
+    confirm = QMessageBox()
+    confirm.setText("Are you sure you want to send ALL highlights to obsidian? This cannot be undone.")
+    confirm.setStandardButtons(QMessageBox.Yes | QMessageBox.No)
+    confirm.setIcon(QMessageBox.Question)
+    confirmed = confirm.exec()
+
+    if confirmed == QMessageBox.Yes:
+        send_highlights(parent, db)
+
+
+def resend_highlights(parent, db):
+    """
+    this function is mainly intended to be used in case obsidian fails to receive the highlights that
+    were sent to it. this sometimes happens when the obsidian program isn't open to the right vault
+    or isn't open at all when highlights are sent. it also sometimes happens for reasons unknown to me.
+
+    :param parent: QDialog or other window that is the parent of the info dialogs this function makes
+    :param db: calibre database: Cache().new_api
+    """
+    prev_send = prefs['prev_send']
+    if prev_send is None:
+        info_dialog(parent, "Cannot resend highlights", "No highlights were previously sent", show=True)
+        return
+
+    # prev_send is the date/time of the send time before last_send_time.
+    # send highlights between then and last_send_time.
+    prev_send_time = mktime(strptime(prefs["prev_send"], "%Y-%m-%d %H:%M:%S"))
+    last_send_time = mktime(strptime(prefs["last_send_time"], "%Y-%m-%d %H:%M:%S"))
+
+    def highlight_send_condition(highlight) -> bool:
         """
-        :param book_titles_authors: dictionary of {book_id: dict of {"title": book_title, "authors": book_authors}},
-         to be used for note formatting
+        :param highlight: json object containing a calibre highlight's data
+        :return: true if the highlight was made between prev send time and most recent send time
         """
+        # alternatively, store the uuids of previously sent highlights in prefs, and only send those
 
-        self.book_titles_authors = book_titles_authors
+        # calibre's time format example: "2022-09-10T20:32:08.820Z"
+        highlight_time = mktime(strptime(highlight["annotation"]["timestamp"][:19], "%Y-%m-%dT%H:%M:%S"))
+        return prev_send_time < highlight_time < last_send_time
 
-    def set_annotations_list(self, annotations_list):
+    send_highlights(parent, db, condition=highlight_send_condition, update_send_time=False)
+
+
+def book_ids_to_titles_authors(db):
+
+    def format_authors(authors) -> str:
         """
-        :param annotations_list: the object returned by calibre.db.cache.Cache.new_api's all_annotations() function
+        :param authors: Tuple[str] with author names in it
+        :return: author names merged into a single string
         """
-        self.annotations_list = annotations_list
+        auths = list(authors)
+        if len(auths) > 1:
+            auths[-1] = "and " + auths[-1]
 
-    def make_obsidian_data(self, note_file, note_content):
-        """
-        :param note_file: title of this note, including relative path
-        :param note_content: body of this note
-        :return: dictionary which includes vault name, note file/title, note contents.
-        return value can be used as input for send_item_to_obsidian().
-        """
+        return ", ".join(auths) if len(auths) > 2 else " " .join(auths)
 
-        obsidian_data: Dict[str, str] = {
-            "vault": self.vault_name,
-            "file": note_file,
-            "content": note_content,
-            "append": "true",
-        }
+    ret = {}
 
-        return obsidian_data
+    for book_id, title in db.all_field_for('title', db.all_book_ids()).items():
+        authors = format_authors(db.field_for("authors", book_id))
+        ret[book_id] = {"title": title, "authors": authors}
 
-    def send(self, condition: Callable[[Any], bool] = lambda x: True):
-        """
-        sends highlights to obsidian. currently uses the annotations.calibre_annotation_collection
-        file to get highlight data.
-
-        condition takes a highlight's json object and returns true if that highlight should be sent to obsidian.
-        """
-
-        highlights = filter(lambda a: a.get("annotation", {}).get("type") == "highlight", self.annotations_list)  # annotations["annotations"])
-        dats = []  # List[List[obsidian_data, sort_key]]
-
-        for highlight in highlights:
-            if highlight["annotation"].get("removed", False):
-                continue  # don't try to send highlights that have been removed
-
-            if not condition(highlight):
-                continue
-
-            dat = make_format_dict(highlight, self.library_name, self.book_titles_authors)
-            formatted = format_data(dat, self.title_format, self.body_format, self.no_notes_format)
-
-            dats.append([formatted, dat["sort_key"]])
-
-        def merge_highlights(data):
-            """
-            returns a dictionary with formatted highlights merged into a single string for each
-            unique formatted note title found in dats
-
-            for reference, format_data() output is a list of [title, body]
-
-            :param data: List[List[format_data() output, sort_key]]
-            :return: list of obsidian_data objects, where each unique title from the input is merged into a
-            single, sorted item in the output.
-            """
-            # this function has too many nested index lookups, it could use some simplification
-
-            books = {}  # dict[str, list[list[obsidian_data object, sort_key]]
-            for d in data:
-                format_dat = d[0]  # list[title, body]
-                body_and_sort = [format_dat[1], d[1]]  # [note body, sort key]
-                note_title = format_dat[0]
-                if note_title in books:
-                    books[note_title].append(body_and_sort)
-                else:
-                    books[note_title] = [body_and_sort]
-
-            # now, books contains lists of unsorted [note body, sort key] objects
-            ret = []
-
-            for key in books:
-                # sort each book's highlights and then merge them into a single string
-                books[key].sort(key=lambda body_sort: body_sort[1])
-                ret.append(self.make_obsidian_data(key, "".join([a[0] for a in books[key]])))
-
-            return ret
-
-        # todo: sometimes, if obsidian isn't already open, not all highlights get sent
-        for obsidian_dat in merge_highlights(dats):
-            send_item_to_obsidian(obsidian_dat)
-
-        return len(dats)
+    return ret

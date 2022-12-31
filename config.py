@@ -2,8 +2,8 @@ import time
 
 from qt.core import QWidget, QVBoxLayout, QLabel, QLineEdit, QPlainTextEdit, QPushButton
 from calibre.utils.config import JSONConfig
-from calibre_plugins.highlights_to_obsidian.send import (title_default_format, body_default_format,
-                                                         vault_default_name, no_notes_default_format)
+from calibre_plugins.highlights_to_obsidian.highlight_sender import (title_default_format, body_default_format,
+                                                                     vault_default_name, no_notes_default_format)
 
 # This is where all preferences for this plugin will be stored
 # Remember that this name (i.e. plugins/highlights_to_obsidian) is also
