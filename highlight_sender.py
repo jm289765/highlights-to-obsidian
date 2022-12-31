@@ -95,6 +95,7 @@ def make_format_dict(data, calibre_library: str, book_titles_authors: Dict[int, 
     local = time.localtime()
     title_authors = book_titles_authors.get(int(data["book_id"]), {})
 
+    # based on https://github.com/jplattel/obsidian-clipper
     format_options = {
         # if you add a key to this dict, also update the format_options local variable in config.py
         "title": title_authors.get("title", "Untitled"),  # title of book

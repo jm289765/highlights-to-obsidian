@@ -6,6 +6,19 @@ from calibre_plugins.highlights_to_obsidian.highlight_sender import HighlightSen
 from time import strptime, strftime, localtime, mktime
 
 
+def help_menu(parent):
+    title = "Highlights to Obsidian Help Menu"
+    body = "You can update the formatting of highlights sent to Obsidian in this plugin's config menu at " + \
+           "Preferences -> Plugins -> User interface action -> Highlights to Obsidian.\n\n" + \
+           "If you don't want your first time sending new highlights to Obsidian to send all highlights, " + \
+           "update the last send time in the config.\n\n" + \
+           "Sometimes, if you send highlights while your obsidian vault is closed, not all highlights will " + \
+           "be sent. If this happens, you can use the \"Resend Previously Sent Highlights\" function.\n\n" + \
+           "You can set keyboard shortcuts in Preferences -> Shortcuts -> H2O. " + \
+           "Some available keyboard shortcuts include CTRL+S, CTRL+E, CTRL+G, CTRL+H, CTRL+J, and CTRL+K."
+    info_dialog(parent, title, body, show=True)
+
+
 def send_highlights(parent, db, condition=lambda x: True, update_send_time=True) -> int:
     """
     :param parent: QDialog or other window that is the parent of the info dialogs this function makes

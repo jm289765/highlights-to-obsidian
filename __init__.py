@@ -9,7 +9,7 @@ class HighlightsToObsidianPlugin(InterfaceActionBase):
     description         = 'Automatically send highlights from calibre to obsidian.md'
     supported_platforms = ['windows', 'osx', 'linux']  # only tested on windows
     author              = 'jm289765'
-    version             = (0, 1, 0)
+    version             = (0, 1, 0) # todo: update version
     actual_plugin       = 'calibre_plugins.highlights_to_obsidian.menu_button:MenuButton'
     minimum_calibre_version = (6, 10, 0)  # this plugin probably works on earlier versions, i haven't tested
 

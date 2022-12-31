@@ -1,18 +1,12 @@
 from functools import partial
 from qt.core import QDialog, QVBoxLayout, QPushButton, QMessageBox, QLabel
-from calibre_plugins.highlights_to_obsidian.send import send_new_highlights, send_all_highlights, resend_highlights
+from calibre_plugins.highlights_to_obsidian.button_actions import help_menu, send_new_highlights, send_all_highlights, resend_highlights
+from calibre_plugins.highlights_to_obsidian.config import prefs
 
 
 class MainDialog(QDialog):
 
     def __init__(self, gui, icon, do_user_config):
-        # todo: if this is the first time the extension has been used, open a popup telling the
-        # user to set config and, if they don't want to send all notes, last_send_time. also keyboard
-        # shortcut in Preferences -> Shortcuts -> Send Highlights to Obsidian
-        # make this popup be a help menu that's also accessible from a button in this dialog window.
-        # also add the help, and a config button as actions in menu_button.py
-        # shortcuts that are available include ctrl+s, ctrl+e, ctrl+g, ctrl+h, ctrl+j, ctrl+k
-        # this can use the info_dialog function used in this class's update_metadata
 
         QDialog.__init__(self, gui)
         self.gui = gui
@@ -29,12 +23,6 @@ class MainDialog(QDialog):
         self.l = QVBoxLayout()
         self.setLayout(self.l)
 
-        # button to open config
-        self.conf_button = QPushButton(
-            'Configure this plugin', self)
-        self.conf_button.clicked.connect(self.config)
-        self.l.addWidget(self.conf_button)
-
         # send new highlights button
         self.send_button = QPushButton("Send new highlights to obsidian", self)
         self.send_button.clicked.connect(partial(send_new_highlights, self, db))
@@ -50,7 +38,23 @@ class MainDialog(QDialog):
         self.resend_button.clicked.connect(partial(resend_highlights, self, db))
         self.l.addWidget(self.resend_button)
 
+        # button to open config
+        self.conf_button = QPushButton(
+            'Configure this plugin', self)
+        self.conf_button.clicked.connect(self.config)
+        self.l.addWidget(self.conf_button)
+
+        # help menu button
+        self.help_button = QPushButton("Help", self)
+        self.help_button.clicked.connect(partial(help_menu, self))
+        self.l.addWidget(self.help_button)
+
         self.resize(self.sizeHint())
+
+        if prefs["display_help_on_menu_open"]:
+            help_menu(self)
+            prefs["display_help_on_menu_open"] = False
+
 
     def config(self):
         self.do_user_config(parent=self)

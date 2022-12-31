@@ -1,7 +1,7 @@
 from functools import partial
 from calibre.gui2.actions import InterfaceAction
 from calibre_plugins.highlights_to_obsidian.main import MainDialog
-import calibre_plugins.highlights_to_obsidian.send as send
+import calibre_plugins.highlights_to_obsidian.button_actions as b_acts
 
 
 class MenuButton(InterfaceAction):
@@ -19,6 +19,8 @@ class MenuButton(InterfaceAction):
         self.new_highlights_action = None
         self.all_highlights_action = None
         self.resend_highlights_action = None
+        self.user_config_action = None
+        self.open_help_action = None
 
     def genesis(self):
         # This method is called once per plugin, do initial setup here
@@ -45,17 +47,22 @@ class MenuButton(InterfaceAction):
 
         # action specs are of the form: (text, icon_path, tooltip, keyboard shortcut).
         ma = partial(self.create_menu_action, self.qaction.menu())
+        un = "Highlights to Obsidian: Menu Button: "
         # create_menu_action(self, menu, unique_name, text, icon=None, shortcut=None,
         #             description=None, triggered=None, shortcut_name=None, persist_shortcut=False):
         nh = "Send New Highlights to Obsidian"
         nhd = "Send new highlights to Obsidian"
-        self.new_highlights_action = ma(nh, nh, description=nhd, shortcut=None, triggered=self.send_new_highlights)
+        self.new_highlights_action = ma(un + nh, nh, description=nhd, shortcut=None, triggered=self.send_new)
         ah = "Send All Highlights to Obsidian"
         ahd = "Send all highlights to Obsidian"
-        self.all_highlights_action = ma(ah, ah, description=ahd, shortcut=None, triggered=self.send_all_highlights)
+        self.all_highlights_action = ma(un + ah, ah, description=ahd, shortcut=None, triggered=self.send_all)
         rh = "Resend Highlights to Obsidian"
         rhd = "Resend last highlights sent to Obsidian"
-        self.resend_highlights_action = ma(rh, rh, description=rhd, shortcut=None, triggered=self.resend_highlights)
+        self.resend_highlights_action = ma(un + rh, rh, description=rhd, shortcut=None, triggered=self.resend)
+        ocd = "Open config settings for Highlights to Obsidian"
+        self.user_config_action = ma(un + "Config", "Config", description=ocd, shortcut=False, triggered=self.open_config)
+        hd = "Open help menu for Highlights to Obsidian"
+        self.open_help_action = ma(un + "Help", "Help", description=hd, shortcut=False, triggered=self.open_help)
 
     def show_dialog(self):
         # The base plugin object defined in __init__.py
@@ -65,14 +72,21 @@ class MenuButton(InterfaceAction):
         d = MainDialog(self.gui, self.qaction.icon(), do_user_config)
         d.show()
 
-    def send_new_highlights(self):
-        send.send_new_highlights(self.gui, self.gui.current_db.new_api)
+    def send_new(self):
+        b_acts.send_new_highlights(self.gui, self.gui.current_db.new_api)
 
-    def send_all_highlights(self):
-        send.send_all_highlights(self.gui, self.gui.current_db.new_api)
+    def send_all(self):
+        b_acts.send_all_highlights(self.gui, self.gui.current_db.new_api)
 
-    def resend_highlights(self):
-        send.resend_highlights(self.gui, self.gui.current_db.new_api)
+    def resend(self):
+        b_acts.resend_highlights(self.gui, self.gui.current_db.new_api)
+
+    def open_config(self):
+        do_user_config = self.interface_action_base_plugin.do_user_config
+        do_user_config(parent=self.gui)
+
+    def open_help(self):
+        b_acts.help_menu(self.gui)
 
     def apply_settings(self):
         from calibre_plugins.highlights_to_obsidian.config import prefs

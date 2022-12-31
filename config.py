@@ -19,6 +19,7 @@ prefs.defaults['title_format'] = title_default_format
 prefs.defaults['body_format'] = body_default_format
 prefs.defaults['no_notes_format'] = no_notes_default_format
 prefs.defaults['prev_send'] = None  # the send time before last_send_time
+prefs.defaults['display_help_on_menu_open'] = True
 
 
 class ConfigWidget(QWidget):
@@ -103,7 +104,7 @@ class ConfigWidget(QWidget):
         self.l.addWidget(self.time_linebreak_label)
 
         # time setting
-        self.time_label = QLabel('Last time highlights were sent:', self)
+        self.time_label = QLabel('Last time highlights were sent (highlights made after this are considered new):', self)
         self.l.addWidget(self.time_label)
 
         self.time_input = QLineEdit(self)
