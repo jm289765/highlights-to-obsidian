@@ -100,7 +100,7 @@ def make_format_dict(data, calibre_library: str, book_titles_authors: Dict[int, 
     format_options = {
         # if you add a key to this dict, also update the format_options local variable in config.py
         "title": title_authors.get("title", "Untitled"),  # title of book
-        "authors": title_authors.get("authors", ("Unknown",)),  # title of book
+        "authors": title_authors.get("authors", ("Unknown",)),  # authors of book
         "highlight": annot["highlighted_text"],  # highlighted text
         "blockquote": format_blockquote(annot["highlighted_text"]),  # block-quoted highlight
         "notes": annot["notes"] if "notes" in annot else "",  # user's notes on this highlight
