@@ -40,6 +40,7 @@ def send_highlights(parent, db, condition=lambda x: True, update_send_time=True)
         _sender.set_no_notes_format(prefs["no_notes_format"])
         _sender.set_book_titles_authors(book_ids_to_titles_authors(db))
         _sender.set_annotations_list(db.all_annotations())
+        _sender.set_sort_key(prefs["sort_key"])
         return _sender
 
     sender = make_sender()

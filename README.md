@@ -24,14 +24,21 @@ Available formatting options are as follows:
 - {date}: Date the highlight was made, formatted as YYYY-MM-DD
 - {time}: Time the highlight was made, formatted as HH:MM:SS
 - {datetime}: Date and time highlight was made, formatted as YYYY-MM-DD HH:MM:SS
+- {localdate}, {localtime}, {localdatetime}
 - {timezone}: The timezone that your computer is currently set to. Note that this may not always match the timezone the highlight was made in. This uses the full name, as in "Coordinated Universal Time", instead of the abbreviation, as in "UTC".
-- {timeoffset}: The UTC offset of your computer's current time zone. For example, UTC time gives +0:00. EST time can be -4:00 or -5:00, depending on daylight savings time.
+- {utcoffset} or {timeoffset}: The UTC offset of your computer's current time zone. For example, UTC time gives +0:00. EST time can be -4:00 or -5:00, depending on daylight savings time.
 - {day}: Day of the month the highlight was made, as in 3 or 17
 - {month}: Month the highlight was made, as in 4 for April or 10 for October
 - {year}: Full year the highlight was made, as in 2022
+- {localday}, {localmonth}, {localyear}
 - {url}: A [calibre:// url](https://manual.calibre-ebook.com/url_scheme.html) to open the ebook viewer to this highlight. Note that this may not work if your library's name contains unsafe URL characters. Numbers, letters, spaces, underscores, and hyphens are all safe.
+- {location}: The highlight's EPUB CFI location in the book. For example, "/2/8/6/5:192". As a sort key, this will order highlights by their position in the book.
+- {timestamp}: The highlight's Unix timestamp. This is the default sort key used to determine what order to send highlights in.
 - {bookid}: The book's ID in calibre. 
 - {uuid}: The highlight's unique ID in calibre. For example, "TlNlh8_I5VGKUtqdfbOxDw".
-- {sort_key}: The highlight's timestamp, represented as a Unix timestamp. This is used by the plugin to determine what order to send highlights in.
 
 For an example of how to use these, see the default format settings in the plugin's config.
+
+---
+
+Formatting options based on the [Obsidian Clipper](https://github.com/jplattel/obsidian-clipper) Chrome extension.

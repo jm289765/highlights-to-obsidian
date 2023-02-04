@@ -3,6 +3,7 @@ import webbrowser
 from typing import Dict, List, Callable, Any
 from urllib.parse import urlencode, quote
 import datetime
+
 # avoid importing anything from calibre or the highlights_to_obsidian plugin here
 
 
@@ -12,6 +13,7 @@ vault_default_name = "My Vault"
 title_default_format = "Books/{title} by {authors}"
 body_default_format = "\n[Highlighted]({url}) on {date} at {time} UTC {timeoffset}:\n{blockquote}\n\n{notes}\n\n---\n"
 no_notes_default_format = "\n[Highlighted]({url}) on {date} at {time} UTC {timeoffset}:\n{blockquote}\n\n---\n"
+sort_key_default = "timestamp"
 
 
 def send_item_to_obsidian(obsidian_data: Dict[str, str]) -> None:
@@ -69,10 +71,6 @@ def make_format_dict(data, calibre_library: str, book_titles_authors: Dict[int, 
 
     annot = data["annotation"]
 
-    # calibre's time format example: "2022-09-10T20:32:08.820Z"
-    # "%Y-%m-%dT%H:%M:%S", take [:19] of the timestamp to remove milliseconds
-    h_time = datetime.datetime.strptime(annot["timestamp"][:19], "%Y-%m-%dT%H:%M:%S")
-
     # format is calibre://view-book/<Library_Name>/<book_id>/<book_format>?open_at=<location>
     # for example, calibre://view-book/Calibre_Library/39/EPUB?open_at=epubcfi(/8/2/4/84/1:184)
     # todo: right now, opening two different links from the same book opens two different viewer windows,
@@ -93,32 +91,49 @@ def make_format_dict(data, calibre_library: str, book_titles_authors: Dict[int, 
         "location": "/" + str((annot["spine_index"] + 1) * 2) + annot["start_cfi"],
     }
 
+    # calibre's time format example: "2022-09-10T20:32:08.820Z"
+    # the "Z" at the end means UTC time
+    # "%Y-%m-%dT%H:%M:%S", take [:19] of the timestamp to remove milliseconds
+    # better alternative might be dateutil.parser.parse
+    h_time = datetime.datetime.strptime(annot["timestamp"][:19], "%Y-%m-%dT%H:%M:%S")
+    h_local = h_time + h_time.astimezone(datetime.datetime.now().tzinfo).utcoffset()
     local = time.localtime()
-    title_authors = book_titles_authors.get(int(data["book_id"]), {})
+    title_authors = book_titles_authors.get(int(data["book_id"]), {})  # dict with {"title": str, "authors": Tuple[str]}
+    utc_offset = ("" if local.tm_gmtoff < 0 else "+") + str(local.tm_gmtoff // 3600) + ":00"
 
     # based on https://github.com/jplattel/obsidian-clipper
     format_options = {
         # if you add a key to this dict, also update the format_options local variable in config.py
         "title": title_authors.get("title", "Untitled"),  # title of book
+        # todo: add "chapter" option
         "authors": title_authors.get("authors", ("Unknown",)),  # authors of book
         "highlight": annot["highlighted_text"],  # highlighted text
         "blockquote": format_blockquote(annot["highlighted_text"]),  # block-quoted highlight
         "notes": annot["notes"] if "notes" in annot else "",  # user's notes on this highlight
-        "date": str(h_time.date()),  # date highlight was made
-        "time": str(h_time.time()),  # time highlight was made
+        "date": str(h_time.date()),  # utc date highlight was made
+        "localdate": str(h_local.date()),
+        # local date highlight was made. "local" based on send time, not highlight time
+        "time": str(h_time.time()),  # utc time highlight was made
+        "localtime": str(h_local.time()),  # local time highlight was made
         "datetime": str(h_time),
+        "localdatetime": str(h_local),
         # calibre uses local time when making annotations. see function "render_timestamp"
         # https://github.com/kovidgoyal/calibre/blob/master/src/calibre/gui2/library/annotations.py#L34
         # todo: timezone currently displays "Coordinated Universal Time" instead of the abbreviation, "UTC"
-        "timezone": local.tm_zone,
-        "timeoffset": ("-" if local.tm_gmtoff < 0 else "+") + str(local.tm_gmtoff // 3600) + ":00",
+        "timezone": h_local.tzname(),  # local timezone
+        "utcoffset": utc_offset,
+        "timeoffset": utc_offset,  # for backwards compatibility
         "day": str(h_time.day),
+        "localday": str(h_local.day),
         "month": str(h_time.month),
+        "localmonth": str(h_local.month),
         "year": str(h_time.year),
+        "localyear": str(h_local.year),
         "url": url_format.format(**url_args),  # calibre:// url to open ebook viewer to this highlight
+        "location": url_args["location"],  # epub cfi location of this highlight
+        "timestamp": h_time.timestamp(),  # Unix timestamp of highlight time. uses UTC.
         "bookid": data["book_id"],
         "uuid": annot["uuid"],  # highlight's ID in calibre
-        "sort_key": h_time.timestamp()  # used to determine order to send highlights in
     }
 
     return format_options
@@ -135,6 +150,7 @@ class HighlightSender:
         self.no_notes_format = no_notes_default_format
         self.book_titles_authors = {}
         self.annotations_list = []
+        self.sort_key = sort_key_default
 
     def set_library(self, library_name: str):
         self.library_name = library_name
@@ -168,6 +184,14 @@ class HighlightSender:
         """
         self.annotations_list = annotations_list
 
+    def set_sort_key(self, sort_key: str):
+        """
+        :param sort_key: key to use for sorting highlights. should be one of the formatting options, e.g. "timestamp",
+        "location", "highlight", etc
+        """
+        # todo: verify that the sort key is valid
+        self.sort_key = sort_key
+
     def make_obsidian_data(self, note_file, note_content):
         """
         :param note_file: title of this note, including relative path
@@ -185,12 +209,47 @@ class HighlightSender:
 
         return obsidian_data
 
+    def format_sort_key(self, dat: Dict):
+        """
+        this function is necessary for handling things that can be used as sort keys, but
+        don't work as the user would expect them to.
+
+        :param dat: a value returned from make_format_dict
+        :return: a sort key for sorting highlights
+        """
+        if self.sort_key == "location":
+            # locations are something like "/int/int/int/int:int", but the ints aren't always the same length.
+            # so normal string comparisons end up comparing "/" to numbers, which isn't what we want
+            loc = dat[self.sort_key]
+            locs = loc.split("/")  # first element is empty string since location starts with "/"
+            locs, end = locs[1:-1], locs[-1]
+
+            def get_num(x):
+                # x[:x.find("[")] to catch locations with "[pXXX]" in them (XXX is a page number).
+                # these locations seem to show up when there's more than one highlight in the same paragraph.
+                y = x.find("[")
+                if y == -1:
+                    return int(x)
+                else:
+                    return int(x[:y])
+
+            locs = [get_num(x) for x in locs]
+            end = [get_num(x) for x in end.split(":")]
+            # standardize list length to 8. i think amount of numbers in a location depends on how the book is
+            # organized, but it's very rare to have that many nested sections, so this should work well enough
+            # we use 8 because adding end increases length by 2, giving us a total length of 10
+            ret = [locs[x] if x < len(locs) else 0 for x in range(8)] + end
+            return tuple(ret)
+        else:
+            return dat[self.sort_key]
+
     def send(self, condition: Callable[[Any], bool] = lambda x: True):
         """
         condition takes a highlight's json object and returns true if that highlight should be sent to obsidian.
         """
 
-        highlights = filter(lambda a: a.get("annotation", {}).get("type") == "highlight", self.annotations_list)  # annotations["annotations"])
+        highlights = filter(lambda a: a.get("annotation", {}).get("type") == "highlight",
+                            self.annotations_list)  # annotations["annotations"])
         dats = []  # List[List[obsidian_data, sort_key]]
 
         for highlight in highlights:
@@ -203,7 +262,7 @@ class HighlightSender:
             dat = make_format_dict(highlight, self.library_name, self.book_titles_authors)
             formatted = format_data(dat, self.title_format, self.body_format, self.no_notes_format)
 
-            dats.append([formatted, dat["sort_key"]])
+            dats.append([formatted, self.format_sort_key(dat)])
 
         def merge_highlights(data):
             """
@@ -219,6 +278,7 @@ class HighlightSender:
             # this function has too many nested index lookups, it could use some simplification
 
             books = {}  # dict[str, list[list[obsidian_data object, sort_key]]
+            # make list of highlights for each note title
             for d in data:
                 format_dat = d[0]  # list[title, body]
                 body_and_sort = [format_dat[1], d[1]]  # [note body, sort key]
