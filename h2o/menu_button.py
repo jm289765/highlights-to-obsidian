@@ -37,12 +37,11 @@ class MenuButton(InterfaceAction):
         # are not found in the zip file will result in null QIcons.
 
         # highlights_to_obsidian doesn't currently have an icon
-        # todo: make menu icon for this plugin
-        # icon = get_icons('images/icon.png', 'Interface Demo Plugin')
+        icon = get_icons('images/icon.png', 'Highlights to Obsidian Icon')
 
         # The qaction is automatically created from the action_spec defined
         # above
-        # self.qaction.setIcon(icon)
+        self.qaction.setIcon(icon)
         self.qaction.triggered.connect(self.show_dialog)
 
         # action specs are of the form: (text, icon_path, tooltip, keyboard shortcut).
