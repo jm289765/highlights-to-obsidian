@@ -42,3 +42,5 @@ For an example of how to use these, see the default format settings in the plugi
 ---
 
 Formatting options based on the [Obsidian Clipper](https://github.com/jplattel/obsidian-clipper) Chrome extension.
+
+h2o-index.txt is for the [plugin index page](https://www.mobileread.com/forums/showthread.php?t=118764) on the Calibre forum.

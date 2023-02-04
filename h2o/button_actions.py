@@ -141,6 +141,15 @@ def send_all_selected_highlights(parent, db):
     :param db: calibre database: Cache().new_api
     """
 
+    confirm = QMessageBox()
+    confirm.setText("Are you sure you want to send ALL highlights of the selected books to obsidian? This cannot be undone.")
+    confirm.setStandardButtons(QMessageBox.Yes | QMessageBox.No)
+    confirm.setIcon(QMessageBox.Question)
+    confirmed = confirm.exec()
+
+    if confirmed != QMessageBox.Yes:
+        return
+
     try:
         parent.library_view  # check if this exists
         gui = parent

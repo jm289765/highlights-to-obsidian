@@ -102,8 +102,12 @@ class ConfigWidget(QWidget):
         # 'Recommended: "timestamp" or "location"'
 
         # time setting
-        self.time_label = QLabel('Last time highlights were sent (highlights made after this are considered new):', self)
+        self.time_label = QLabel('Last time highlights were sent (highlights made after this are considered new)', self)
         self.l.addWidget(self.time_label)
+
+        # time format info
+        self.time_format_label = QLabel("Time must be formatted: \"YYYY-MM-DD hh:mm:ss\"")
+        self.l.addWidget(self.time_format_label)
 
         self.time_input = QLineEdit(self)
         self.time_input.setText(prefs['last_send_time'])
@@ -114,10 +118,6 @@ class ConfigWidget(QWidget):
         self.set_time_now_button = QPushButton("Set last send time to now (UTC)", self)
         self.set_time_now_button.clicked.connect(self.set_time_now)
         self.l.addWidget(self.set_time_now_button)
-
-        # time format info
-        self.time_format_label = QLabel("Time must be formatted: \"YYYY-MM-DD hh:mm:ss\"")
-        self.l.addWidget(self.time_format_label)
 
     def make_format_info_labels(self):
         format_info = "Notes sent to obsidian have the following formatting options. " + \

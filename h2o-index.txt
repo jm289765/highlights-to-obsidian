@@ -1,0 +1,2 @@
+[*][URL="https://www.mobileread.com/forums/showthread.php?t=351283"]Highlights to Obsidian[/URL]
+[I]Sends calibre highlights to Obsidian markdown editor with customizable formatting.[/I]
