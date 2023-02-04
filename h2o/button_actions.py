@@ -3,7 +3,7 @@ from calibre.gui2 import info_dialog
 from calibre.library import current_library_name
 from calibre_plugins.highlights_to_obsidian.config import prefs
 from calibre_plugins.highlights_to_obsidian.highlight_sender import HighlightSender
-from time import strptime, strftime, localtime, mktime, gmtime
+from time import strptime, strftime, mktime, gmtime
 
 
 def help_menu(parent):
@@ -103,8 +103,63 @@ def send_all_highlights(parent, db):
         send_highlights(parent, db)
 
 
+def send_new_selected_highlights(parent, db):
+    """
+    sends new highlights in the currently selected books in the main window. does update last_send_time, so
+    any new highlights not in the selected books will be ignored, but can be sent with resend_highlights
+
+    :param parent: QDialog or other window that is the parent of the info dialogs this function makes. should be, or
+    have as a property ".gui", calibre's gui object.
+    :param db: calibre database: Cache().new_api
+    """
+
+    try:
+        parent.library_view  # check if this exists
+        gui = parent
+    except:
+        gui = parent.gui
+
+    rows = gui.library_view.selectionModel().selectedRows()
+    selected_ids = list(map(gui.library_view.model().id, rows))
+    last_send_time = mktime(strptime(prefs["last_send_time"], "%Y-%m-%d %H:%M:%S"))
+
+    def highlight_send_condition(highlight):
+        # todo: probably a good idea to move the last_send_time check to an external function, since the code is
+        #  repeated in 3 places: send_new_selected_highlights, send_new_highlights, resend_highlights
+        highlight_time = mktime(strptime(highlight["annotation"]["timestamp"][:19], "%Y-%m-%dT%H:%M:%S"))
+        return highlight_time > last_send_time and int(highlight["book_id"]) in selected_ids
+
+    send_highlights(parent, db, highlight_send_condition, update_send_time=True)
+
+
+def send_all_selected_highlights(parent, db):
+    """
+    sends all highlights in the currently selected books in the main window.
+
+    :param parent: QDialog or other window that is the parent of the info dialogs this function makes. should be, or
+    have as a property ".gui", calibre's gui object.
+    :param db: calibre database: Cache().new_api
+    """
+
+    try:
+        parent.library_view  # check if this exists
+        gui = parent
+    except:
+        gui = parent.gui
+
+    rows = gui.library_view.selectionModel().selectedRows()
+    selected_ids = list(map(gui.library_view.model().id, rows))
+
+    def highlight_send_condition(highlight):
+        return int(highlight["book_id"]) in selected_ids
+
+    send_highlights(parent, db, highlight_send_condition, update_send_time=False)
+
+
 def resend_highlights(parent, db):
     """
+    resends highlights that were previously sent with send_new_highlights.
+
     this function is mainly intended to be used in case obsidian fails to receive the highlights that
     were sent to it. this sometimes happens when the obsidian program isn't open to the right vault
     or isn't open at all when highlights are sent. it also sometimes happens for reasons unknown to me.

@@ -17,8 +17,8 @@ class MenuButton(InterfaceAction):
     def __init__(self, parent, site_customization):
         super().__init__(parent, site_customization)
         self.new_highlights_action = None
-        self.all_highlights_action = None
         self.resend_highlights_action = None
+        self.new_selected_books_action = None
         self.user_config_action = None
         self.open_help_action = None
 
@@ -53,12 +53,13 @@ class MenuButton(InterfaceAction):
         nh = "Send New Highlights to Obsidian"
         nhd = "Send new highlights to Obsidian"
         self.new_highlights_action = ma(un + nh, nh, description=nhd, shortcut=None, triggered=self.send_new)
-        ah = "Send All Highlights to Obsidian"
-        ahd = "Send all highlights to Obsidian"
-        self.all_highlights_action = ma(un + ah, ah, description=ahd, shortcut=None, triggered=self.send_all)
         rh = "Resend Highlights to Obsidian"
         rhd = "Resend last highlights sent to Obsidian"
         self.resend_highlights_action = ma(un + rh, rh, description=rhd, shortcut=None, triggered=self.resend)
+        nsh = "Send New Highlights of Selected Books"
+        nshd = "Send new highlights of selected books to Obsidian. Will prevent non-selected highlights from being " \
+               + "sent by 'Send New Highlights'."
+        self.new_selected_books_action = ma(un + nsh, nsh, description=nshd, shortcut=None, triggered=self.send_new_selected)
         ocd = "Open config settings for Highlights to Obsidian"
         self.user_config_action = ma(un + "Config", "Config", description=ocd, shortcut=False, triggered=self.open_config)
         hd = "Open help menu for Highlights to Obsidian"
@@ -75,11 +76,11 @@ class MenuButton(InterfaceAction):
     def send_new(self):
         b_acts.send_new_highlights(self.gui, self.gui.current_db.new_api)
 
-    def send_all(self):
-        b_acts.send_all_highlights(self.gui, self.gui.current_db.new_api)
-
     def resend(self):
         b_acts.resend_highlights(self.gui, self.gui.current_db.new_api)
+
+    def send_new_selected(self):
+        b_acts.send_new_selected_highlights(self.gui, self.gui.current_db.new_api)
 
     def open_config(self):
         do_user_config = self.interface_action_base_plugin.do_user_config
