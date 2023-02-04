@@ -3,7 +3,7 @@ from calibre.gui2 import info_dialog
 from calibre.library import current_library_name
 from calibre_plugins.highlights_to_obsidian.config import prefs
 from calibre_plugins.highlights_to_obsidian.highlight_sender import HighlightSender
-from time import strptime, strftime, localtime, mktime
+from time import strptime, strftime, localtime, mktime, gmtime
 
 
 def help_menu(parent):
@@ -49,7 +49,10 @@ def send_highlights(parent, db, condition=lambda x: True, update_send_time=True)
         # don't update send time if no highlights were actually sent. this makes sure you
         # won't mess up your prev_send if you accidentally send new highlights twice in a row.
         if update_send_time:
-            prefs["last_send_time"] = strftime("%Y-%m-%d %H:%M:%S", localtime())
+            # has to be time.gmtime() so that we use utc. calibre stores highlight time as UTC, and last_send_time
+            # is what we compare to. if you use localtime instead of gmtime, you'll get rare bugs when the computer's
+            # timezone changes.
+            prefs["last_send_time"] = strftime("%Y-%m-%d %H:%M:%S", gmtime())
 
         info = f"Success: {amt} highlight{' has' if amt == 1 else 's have'} been sent to obsidian."
         info_dialog(parent, "Highlights Sent", info, show=True)
