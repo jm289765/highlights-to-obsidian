@@ -194,15 +194,20 @@ class HighlightSender:
 
     def make_obsidian_data(self, note_file, note_content):
         """
+        limits length of note_file to 180 characters, allowing for an obsidian vault path of up to 80
+        characters (Windows max path length is 260 characters).
+
         :param note_file: title of this note, including relative path
         :param note_content: body of this note
         :return: dictionary which includes vault name, note file/title, note contents.
-        return value can be used as input for send_item_to_obsidian().
+        return value can be used as input for send_item_to_obsidian(). keys are "vault",
+        "file", "content"
         """
 
         obsidian_data: Dict[str, str] = {
             "vault": self.vault_name,
-            "file": note_file,
+            # use note_file[-4:] for the (1), (2), etc added to the end when there are a lot of highlights being sent
+            "file": note_file if len(note_file) < 180 else note_file[:172] + "... " + note_file[-4:],
             "content": note_content,
             "append": "true",
         }
@@ -267,7 +272,10 @@ class HighlightSender:
         def merge_highlights(data):
             """
             returns a dictionary with formatted highlights merged into a single string for each
-            unique formatted note title found in dats
+            unique formatted note title found in dats.
+
+            This limits the length of merged note contents to 20000 characters. If the length exceeds this, extra
+            highlights will use a different title, e.g. "The Book", "The Book (1)", etc
 
             for reference, format_data() output is a list of [title, body]
 
@@ -278,15 +286,34 @@ class HighlightSender:
             # this function has too many nested index lookups, it could use some simplification
 
             books = {}  # dict[str, list[list[obsidian_data object, sort_key]]
+            lengths = {}
             # make list of highlights for each note title
             for d in data:
                 format_dat = d[0]  # list[title, body]
                 body_and_sort = [format_dat[1], d[1]]  # [note body, sort key]
-                note_title = format_dat[0]
+                base_title = format_dat[0]
+
+                # limit each merged highlight to 20000 chars. it could be higher, but we need room for url encoding.
+                #
+                # This is necessary because some operating systems have a limit to how long a uri can be. or maybe the
+                # problem is some detail about how webbrowser.open() is implemented. on my windows 11 laptop, calling
+                # webbrowser.open("obsidian://" + "a" * 32699) works, but "a" * 32700 will open microsoft edge instead,
+                # and if the number reaches 32757 it gives an error.
+                note_title, l = base_title, lengths.get(base_title, False)
+                if l:  # limit size of a note's content to 20 kb.
+                    splits = l // 20000
+                    if splits > 0:
+                        note_title = base_title + f" ({splits})"
+
                 if note_title in books:
                     books[note_title].append(body_and_sort)
                 else:
                     books[note_title] = [body_and_sort]
+
+                if base_title in lengths:
+                    lengths[base_title] += len(body_and_sort[0])
+                else:
+                    lengths[base_title] = len(body_and_sort[0])
 
             # now, books contains lists of unsorted [note body, sort key] objects
             ret = []
@@ -294,12 +321,14 @@ class HighlightSender:
             for key in books:
                 # sort each book's highlights and then merge them into a single string
                 books[key].sort(key=lambda body_sort: body_sort[1])
-                ret.append(self.make_obsidian_data(key, "".join([a[0] for a in books[key]])))
+                text = "".join([a[0] for a in books[key]])
+                ret.append(self.make_obsidian_data(key, text))
 
             return ret
 
         # todo: sometimes, if obsidian isn't already open, not all highlights get sent
-        for obsidian_dat in merge_highlights(dats):
+        merged = merge_highlights(dats)
+        for obsidian_dat in merged:
             send_item_to_obsidian(obsidian_dat)
 
         return len(dats)
