@@ -1,6 +1,7 @@
 import time
 
 from qt.core import QWidget, QVBoxLayout, QLabel, QLineEdit, QPlainTextEdit, QPushButton
+from calibre.gui2 import warning_dialog
 from calibre.utils.config import JSONConfig
 from calibre_plugins.highlights_to_obsidian.highlight_sender import (title_default_format, body_default_format,
                                                                      vault_default_name, no_notes_default_format,
@@ -14,7 +15,9 @@ from calibre_plugins.highlights_to_obsidian.highlight_sender import (title_defau
 prefs = JSONConfig('plugins/highlights_to_obsidian')
 
 # Set defaults
-prefs.defaults['last_send_time'] = time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime(0))
+# set time to 2 days after unix epoch start. hopefully prevents platform-dependent invalid default
+# last_send_time when using time.mktime()
+prefs.defaults['last_send_time'] = time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime(172800))
 prefs.defaults['vault_name'] = vault_default_name
 prefs.defaults['title_format'] = title_default_format
 prefs.defaults['body_format'] = body_default_format
@@ -164,7 +167,18 @@ class ConfigWidget(QWidget):
         prefs['body_format'] = self.body_format_input.toPlainText()
         prefs['no_notes_format'] = self.no_notes_format_input.toPlainText()
         prefs['sort_key'] = self.sort_input.text()
-        prefs['last_send_time'] = self.time_input.text()
+
+        # validate time input
+        send_time = self.time_input.text()
+        try:
+            # todo: move all the scattered calls to mktime(strptime()) to a single place, so i don't have to keep
+            #  copying and pasting the format
+            time.mktime(time.strptime(send_time, "%Y-%m-%d %H:%M:%S"))
+            prefs['last_send_time'] = send_time
+        except:
+            txt = f'Could not parse time "{send_time}". Either it is formatted improperly or the year is too high' + \
+                  f' or low.\n\n Keeping previous time "{prefs["last_send_time"]}" instead.'
+            warning_dialog(self, "Invalid Time", txt, show=True)
 
     def set_time_now(self):
         prefs["last_send_time"] = time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime())

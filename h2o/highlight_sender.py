@@ -13,7 +13,7 @@ vault_default_name = "My Vault"
 title_default_format = "Books/{title} by {authors}"
 body_default_format = "\n[Highlighted]({url}) on {date} at {time} UTC {timeoffset}:\n{blockquote}\n\n{notes}\n\n---\n"
 no_notes_default_format = "\n[Highlighted]({url}) on {date} at {time} UTC {timeoffset}:\n{blockquote}\n\n---\n"
-sort_key_default = "timestamp"
+sort_key_default = "location"
 
 
 def send_item_to_obsidian(obsidian_data: Dict[str, str]) -> None:
