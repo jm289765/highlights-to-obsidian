@@ -12,6 +12,9 @@ def help_menu(parent):
            "Preferences -> Plugins -> User interface action -> Highlights to Obsidian.\n\n" + \
            "If you don't want your first time sending new highlights to Obsidian to send all highlights, " + \
            "update the last send time in the config.\n\n" + \
+           "In the formatting config menu, the 'title' is the title of the note that a highlight will be " + \
+           "sent to. The 'body' is the text that will be sent to that note for each highlight. The " + \
+           "'header' will be sent to each note exactly once when you send highlights.\n\n" + \
            "Sometimes, if you send highlights while your obsidian vault is closed, not all highlights will " + \
            "be sent. If this happens, you can use the \"Resend Previously Sent Highlights\" function.\n\n" + \
            "You can set keyboard shortcuts in Preferences -> Shortcuts -> H2O. " + \
@@ -38,6 +41,7 @@ def send_highlights(parent, db, condition=lambda x: True, update_send_time=True)
         _sender.set_title_format(prefs["title_format"])
         _sender.set_body_format(prefs["body_format"])
         _sender.set_no_notes_format(prefs["no_notes_format"])
+        _sender.set_header_format(prefs["header_format"] if prefs["use_header"] else "")
         _sender.set_book_titles_authors(book_ids_to_titles_authors(db))
         _sender.set_annotations_list(db.all_annotations())
         _sender.set_sort_key(prefs["sort_key"])

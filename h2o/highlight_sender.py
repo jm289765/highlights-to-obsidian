@@ -13,6 +13,7 @@ vault_default_name = "My Vault"
 title_default_format = "Books/{title} by {authors}"
 body_default_format = "\n[Highlighted]({url}) on {date} at {time} UTC {timeoffset}:\n{blockquote}\n\n{notes}\n\n---\n"
 no_notes_default_format = "\n[Highlighted]({url}) on {date} at {time} UTC {timeoffset}:\n{blockquote}\n\n---\n"
+header_default_format = ""  # by default, no header
 sort_key_default = "location"
 
 
@@ -56,6 +57,15 @@ def format_data(dat: Dict[str, str], title: str, body: str, no_notes_body: str =
     pre_format = title.replace("{title}", remove_slashes(dat["title"]))
     return [remove_illegal_title_chars(pre_format.format(**dat)),
             body.format(**dat) if no_notes_body and len(dat["notes"]) > 0 else no_notes_body.format(**dat)]
+
+
+def format_header(dat: Dict[str, str], header_format: str) -> str:
+    """
+    :param dat: output of make_format_dict. dict containing keys and values for string formatting.
+    :param header_format:
+    :return: string with formatted header
+    """
+    return header_format.format(**dat)
 
 
 def make_format_dict(data, calibre_library: str, book_titles_authors: Dict[int, Dict[str, str]]) -> Dict:
@@ -148,6 +158,7 @@ class HighlightSender:
         self.title_format = title_default_format
         self.body_format = body_default_format
         self.no_notes_format = no_notes_default_format
+        self.header_format = header_default_format
         self.book_titles_authors = {}
         self.annotations_list = []
         self.sort_key = sort_key_default
@@ -169,6 +180,14 @@ class HighlightSender:
         sets the body format to be used for highlights that the user didn't make notes for
         """
         self.no_notes_format = no_notes_format
+
+    def set_header_format(self, header_format: str):
+        """
+        for each file that has highlights sent to it, the header will be sent before any highlights.
+        note that this isn't once per file, if you send highlights to a file now and then again
+        to the same file later, there will be two copies of the header.
+        """
+        self.header_format = header_format
 
     def set_book_titles_authors(self, book_titles_authors: Dict[int, Dict[str, str]]):
         """
@@ -256,6 +275,7 @@ class HighlightSender:
         highlights = filter(lambda a: a.get("annotation", {}).get("type") == "highlight",
                             self.annotations_list)  # annotations["annotations"])
         dats = []  # List[List[obsidian_data, sort_key]]
+        headers = {}  # dict[note_title:str, header:str]
 
         for highlight in highlights:
             if highlight["annotation"].get("removed", False):
@@ -266,6 +286,9 @@ class HighlightSender:
 
             dat = make_format_dict(highlight, self.library_name, self.book_titles_authors)
             formatted = format_data(dat, self.title_format, self.body_format, self.no_notes_format)
+
+            if formatted[0] not in headers:
+                headers[formatted[0]] = format_header(dat, self.header_format)
 
             dats.append([formatted, self.format_sort_key(dat)])
 
@@ -321,7 +344,9 @@ class HighlightSender:
             for key in books:
                 # sort each book's highlights and then merge them into a single string
                 books[key].sort(key=lambda body_sort: body_sort[1])
-                text = "".join([a[0] for a in books[key]])
+                # header is only included in first of a series of same-book files
+                # (this happens when there's too much text to send to a single file at once)
+                text = headers.get(key, "") + "".join([a[0] for a in books[key]])
                 ret.append(self.make_obsidian_data(key, text))
 
             return ret

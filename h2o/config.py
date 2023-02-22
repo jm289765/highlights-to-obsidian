@@ -1,11 +1,12 @@
 import time
 
-from qt.core import QWidget, QVBoxLayout, QLabel, QLineEdit, QPlainTextEdit, QPushButton, QDialog, QDialogButtonBox
+from qt.core import (QWidget, QVBoxLayout, QLabel, QLineEdit, QPlainTextEdit,
+                     QPushButton, QDialog, QDialogButtonBox, QCheckBox)
 from calibre.gui2 import warning_dialog
 from calibre.utils.config import JSONConfig
 from calibre_plugins.highlights_to_obsidian.highlight_sender import (title_default_format, body_default_format,
                                                                      vault_default_name, no_notes_default_format,
-                                                                     sort_key_default)
+                                                                     header_default_format, sort_key_default)
 
 # This is where all preferences for this plugin will be stored
 # Remember that this name (i.e. plugins/highlights_to_obsidian) is also
@@ -22,6 +23,8 @@ prefs.defaults['vault_name'] = vault_default_name
 prefs.defaults['title_format'] = title_default_format
 prefs.defaults['body_format'] = body_default_format
 prefs.defaults['no_notes_format'] = no_notes_default_format
+prefs.defaults['header_format'] = header_default_format
+prefs.defaults['use_header'] = ""  # empty string is equal to false
 prefs.defaults['prev_send'] = None  # the send time before last_send_time
 prefs.defaults['display_help_on_menu_open'] = True
 prefs.defaults['sort_key'] = sort_key_default
@@ -118,6 +121,25 @@ class FormattingDialog(QDialog):
 
         self.l.addSpacing(self.spacing)
 
+        # label for header formatting options
+        self.header_format_label = QLabel('Header format (cannot use highlight-specific formatting options):', self)
+        self.l.addWidget(self.header_format_label)
+
+        # checkbox to disable or enable using header
+        self.header_checkbox = QCheckBox("Use header when sending highlights")
+        if prefs['use_header']:
+            self.header_checkbox.setChecked(True)
+        self.l.addWidget(self.header_checkbox)
+
+        # text box for header formatting options
+        self.header_format_input = QPlainTextEdit(self)
+        self.header_format_input.setPlainText(prefs['header_format'])
+        self.header_format_input.setPlaceholderText("Header format...")
+        self.l.addWidget(self.header_format_input)
+        self.header_format_label.setBuddy(self.header_format_input)
+
+        self.l.addSpacing(self.spacing)
+
         # ok and cancel buttons
         self.buttons = QDialogButtonBox()
         self.buttons.setStandardButtons(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
@@ -160,10 +182,15 @@ class FormattingDialog(QDialog):
             self.note_format_list_labels.append(label)
             self.l.addWidget(label)
 
+        time_note = QLabel("Note that times are the time the highlight was made, not the current time.")
+        self.l.addWidget(time_note)
+
     def save_settings(self):
         prefs['title_format'] = self.title_format_input.text()
         prefs['body_format'] = self.body_format_input.toPlainText()
         prefs['no_notes_format'] = self.no_notes_format_input.toPlainText()
+        prefs['header_format'] = self.header_format_input.toPlainText()
+        prefs['use_header'] = "True" if self.header_checkbox.isChecked() else ""  # empty string is equal to false
 
     def ok_button(self):
         self.save_settings()
