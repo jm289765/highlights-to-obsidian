@@ -108,6 +108,7 @@ def make_format_dict(data, calibre_library: str, book_titles_authors: Dict[int, 
     h_time = datetime.datetime.strptime(annot["timestamp"][:19], "%Y-%m-%dT%H:%M:%S")
     h_local = h_time + h_time.astimezone(datetime.datetime.now().tzinfo).utcoffset()
     local = time.localtime()
+    utc = time.gmtime()
     title_authors = book_titles_authors.get(int(data["book_id"]), {})  # dict with {"title": str, "authors": Tuple[str]}
     utc_offset = ("" if local.tm_gmtoff < 0 else "+") + str(local.tm_gmtoff // 3600) + ":00"
 
@@ -139,6 +140,8 @@ def make_format_dict(data, calibre_library: str, book_titles_authors: Dict[int, 
         "localmonth": str(h_local.month),
         "year": str(h_time.year),
         "localyear": str(h_local.year),
+        "utcnow": time.strftime("%Y-%m-%d %H:%M:%S", utc),
+        "localnow": time.strftime("%Y-%m-%d %H:%M:%S", local),
         "url": url_format.format(**url_args),  # calibre:// url to open ebook viewer to this highlight
         "location": url_args["location"],  # epub cfi location of this highlight
         "timestamp": h_time.timestamp(),  # Unix timestamp of highlight time. uses UTC.

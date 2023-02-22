@@ -156,11 +156,12 @@ class FormattingDialog(QDialog):
             "notes", "date",
             "localdate", "time",
             "localtime", "datetime",
-            "localdatetime", "day",
+            "localdatetime", "timezone",
+            "utcoffset", "day",
             "localday", "month",
             "localmonth", "year",
-            "localyear", "timezone",
-            "utcoffset", "url",
+            "localyear", "utcnow",
+            "localnow", "url",
             "location", "timestamp",
             "bookid", "uuid",
         ]
@@ -182,7 +183,8 @@ class FormattingDialog(QDialog):
             self.note_format_list_labels.append(label)
             self.l.addWidget(label)
 
-        time_note = QLabel("Note that times are the time the highlight was made, not the current time.")
+        time_note = QLabel("Note that times are the time the highlight was made, not the current time " + \
+                           "(except 'utcnow' and 'localnow').")
         self.l.addWidget(time_note)
 
     def save_settings(self):
