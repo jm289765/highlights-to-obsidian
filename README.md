@@ -8,6 +8,8 @@ You can update the formatting of highlights sent to Obsidian in this plugin's co
 
 If you don't want your first time sending new highlights to Obsidian to send all highlights, update the last send time in the config.
 
+In the formatting config menu, the 'title' is the title of the note that a highlight will be sent to. The 'body' is the text that will be sent to that note for each highlight. The 'header' will be sent to each note exactly once when you send highlights.
+
 Sometimes, if you send highlights while your obsidian vault is closed, not all highlights will be sent. If this happens, you can use the "Resend Previously Sent Highlights" function.
 
 You can set keyboard shortcuts in Preferences -> Shortcuts -> H2O. Some available keyboard shortcuts include CTRL+S, CTRL+E, CTRL+G, CTRL+H, CTRL+J, and CTRL+K.
@@ -31,6 +33,8 @@ Available formatting options are as follows:
 - {month}: Month the highlight was made, as in 4 for April or 10 for October
 - {year}: Full year the highlight was made, as in 2022
 - {localday}, {localmonth}, {localyear}
+- {utcnow}: current UTC time, formatted same as {datetime}.
+- {localnow}
 - {url}: A [calibre:// url](https://manual.calibre-ebook.com/url_scheme.html) to open the ebook viewer to this highlight. Note that this may not work if your library's name contains unsafe URL characters. Numbers, letters, spaces, underscores, and hyphens are all safe.
 - {location}: The highlight's EPUB CFI location in the book. For example, "/2/8/6/5:192". As a sort key, this will order highlights by their position in the book.
 - {timestamp}: The highlight's Unix timestamp. This is the default sort key used to determine what order to send highlights in.
@@ -41,6 +45,6 @@ For an example of how to use these, see the default format settings in the plugi
 
 ---
 
-Formatting options based on the [Obsidian Clipper](https://github.com/jplattel/obsidian-clipper) Chrome extension.
+Formatting options are based on the [Obsidian Clipper](https://github.com/jplattel/obsidian-clipper) Chrome extension.
 
 h2o-index.txt is for the [plugin index page](https://www.mobileread.com/forums/showthread.php?t=118764) on the Calibre forum.
