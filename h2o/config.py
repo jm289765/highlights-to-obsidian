@@ -24,10 +24,12 @@ prefs.defaults['title_format'] = title_default_format
 prefs.defaults['body_format'] = body_default_format
 prefs.defaults['no_notes_format'] = no_notes_default_format
 prefs.defaults['header_format'] = header_default_format
-prefs.defaults['use_header'] = ""  # empty string is equal to false
+prefs.defaults['use_header'] = False  # empty string is equal to false
 prefs.defaults['prev_send'] = None  # the send time before last_send_time
 prefs.defaults['display_help_on_menu_open'] = True
 prefs.defaults['sort_key'] = sort_key_default
+prefs.defaults['confirm_send_all'] = True  # confirmation dialog when sending all highlights
+prefs.defaults['highlights_sent_dialog'] = True  # show popup with how many highlights were sent
 
 
 class ConfigWidget(QWidget):
@@ -198,7 +200,7 @@ class FormattingDialog(QDialog):
         prefs['body_format'] = self.body_format_input.toPlainText()
         prefs['no_notes_format'] = self.no_notes_format_input.toPlainText()
         prefs['header_format'] = self.header_format_input.toPlainText()
-        prefs['use_header'] = "True" if self.header_checkbox.isChecked() else ""  # empty string is equal to false
+        prefs['use_header'] = self.header_checkbox.isChecked()
 
     def ok_button(self):
         self.save_settings()
@@ -270,6 +272,20 @@ class OtherConfigDialog(QDialog):
 
         self.l.addSpacing(self.spacing)
 
+        # checkbox for confirmation dialog
+        self.show_confirmation_checkbox = QCheckBox("Confirmation dialog when sending all highlights")
+        if prefs['confirm_send_all']:
+            self.show_confirmation_checkbox.setChecked(True)
+        self.l.addWidget(self.show_confirmation_checkbox)
+
+        # checkbox for showing how many highlights were sent
+        self.show_count_checkbox = QCheckBox("After sending highlights, show how many were sent")
+        if prefs['highlights_sent_dialog']:
+            self.show_count_checkbox.setChecked(True)
+        self.l.addWidget(self.show_count_checkbox)
+
+        self.l.addSpacing(self.spacing)
+
         # ok and cancel buttons
         self.buttons = QDialogButtonBox()
         self.buttons.setStandardButtons(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
@@ -284,6 +300,8 @@ class OtherConfigDialog(QDialog):
     def save_settings(self):
         prefs['vault_name'] = self.vault_input.text()
         prefs['sort_key'] = self.sort_input.text()
+        prefs['confirm_send_all'] = self.show_confirmation_checkbox.isChecked()
+        prefs['highlights_sent_dialog'] = self.show_count_checkbox.isChecked()
 
         # validate time input
         send_time = self.time_input.text()

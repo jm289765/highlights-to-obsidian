@@ -60,7 +60,8 @@ def send_highlights(parent, db, condition=lambda x: True, update_send_time=True)
             prefs["last_send_time"] = strftime("%Y-%m-%d %H:%M:%S", gmtime())
 
         info = f"Success: {amt} highlight{' has' if amt == 1 else 's have'} been sent to obsidian."
-        info_dialog(parent, "Highlights Sent", info, show=True)
+        if prefs['highlights_sent_dialog']:
+            info_dialog(parent, "Highlights Sent", info, show=True)
     else:
         info_dialog(parent, "No Highlights Sent", "No highlights to send.", show=True)
 
@@ -97,14 +98,17 @@ def send_all_highlights(parent, db):
     :param parent: QDialog or other window that is the parent of the info dialogs this function makes
     :param db: calibre database: Cache().new_api
     """
-    confirm = QMessageBox()
-    confirm.setText("Are you sure you want to send ALL highlights to obsidian? This cannot be undone.")
-    confirm.setStandardButtons(QMessageBox.Yes | QMessageBox.No)
-    confirm.setIcon(QMessageBox.Question)
-    confirmed = confirm.exec()
+    if prefs['confirm_send_all']:
+        confirm = QMessageBox()
+        confirm.setText("Are you sure you want to send ALL highlights to obsidian? This cannot be undone.")
+        confirm.setStandardButtons(QMessageBox.Yes | QMessageBox.No)
+        confirm.setIcon(QMessageBox.Question)
+        confirmed = confirm.exec()
 
-    if confirmed == QMessageBox.Yes:
-        send_highlights(parent, db)
+        if confirmed != QMessageBox.Yes:
+            return
+
+    send_highlights(parent, db)
 
 
 def send_new_selected_highlights(parent, db):
@@ -145,14 +149,15 @@ def send_all_selected_highlights(parent, db):
     :param db: calibre database: Cache().new_api
     """
 
-    confirm = QMessageBox()
-    confirm.setText("Are you sure you want to send ALL highlights of the selected books to obsidian? This cannot be undone.")
-    confirm.setStandardButtons(QMessageBox.Yes | QMessageBox.No)
-    confirm.setIcon(QMessageBox.Question)
-    confirmed = confirm.exec()
+    if prefs['confirm_send_all']:
+        confirm = QMessageBox()
+        confirm.setText("Are you sure you want to send ALL highlights of the selected books to obsidian? This cannot be undone.")
+        confirm.setStandardButtons(QMessageBox.Yes | QMessageBox.No)
+        confirm.setIcon(QMessageBox.Question)
+        confirmed = confirm.exec()
 
-    if confirmed != QMessageBox.Yes:
-        return
+        if confirmed != QMessageBox.Yes:
+            return
 
     try:
         parent.library_view  # check if this exists
