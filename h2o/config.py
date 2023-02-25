@@ -80,7 +80,7 @@ class FormattingDialog(QDialog):
         self.l.addWidget(self.title_linebreak)
 
         # note formatting info
-        format_info = "The following formatting options are available. " + \
+        format_info = "<b>The following formatting options are available.</b> " + \
                       "To use one, put it in curly brackets, as in {title} or {blockquote}."
         self.note_format_label = QLabel(format_info, self)
         self.l.addWidget(self.note_format_label)
@@ -174,7 +174,7 @@ class FormattingDialog(QDialog):
             "location", "timestamp",
             "bookid", "uuid",
         ]
-        f_opt_str = '"' + '", "'.join(format_options) + '"'
+        f_opt_str = "'" + "', '".join(format_options) + "'"
 
         strs = []
         char_count = 0
