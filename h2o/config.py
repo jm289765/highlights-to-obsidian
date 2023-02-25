@@ -37,20 +37,27 @@ class ConfigWidget(QWidget):
         self.l = QVBoxLayout()
         self.setLayout(self.l)
         self.linebreak = "=" * 80
+        self.spacing = 10
 
         # header
-        self.config_label = QLabel('Highlights to Obsidian Config', self)
+        self.config_label = QLabel('<b>Highlights to Obsidian Config</b>', self)
         self.l.addWidget(self.config_label)
+
+        self.l.addSpacing(self.spacing)
 
         self.formatting_dialog = FormattingDialog()
         self.format_config_button = QPushButton("Formatting Options")
         self.format_config_button.clicked.connect(self.formatting_dialog.exec)
         self.l.addWidget(self.format_config_button)
 
+        self.l.addSpacing(self.spacing)
+
         self.other_dialog = OtherConfigDialog()
         self.other_config_button = QPushButton("Other Options")
         self.other_config_button.clicked.connect(self.other_dialog.exec)
         self.l.addWidget(self.other_config_button)
+
+        self.l.addSpacing(self.spacing)
 
     def save_settings(self):
         # saving is handled in the config dialog classes
@@ -65,19 +72,19 @@ class FormattingDialog(QDialog):
         self.linebreak = "=" * 80
         self.spacing = 20  # pixels
 
-        self.title_label = QLabel("Formatting Options")
+        self.title_label = QLabel("<b>Highlights to Obsidian Formatting Options</b>")
         self.l.addWidget(self.title_label)
         self.title_linebreak = QLabel(self.linebreak)
         self.l.addWidget(self.title_linebreak)
 
         # note formatting info
-        format_info = "The title and body have the following formatting options. " + \
+        format_info = "The following formatting options are available. " + \
                       "To use one, put it in curly brackets, as in {title} or {blockquote}."
         self.note_format_label = QLabel(format_info, self)
         self.l.addWidget(self.note_format_label)
 
-        self.note_format_list_labels = []
-        self.make_format_info_labels()
+        self.note_format_list_label = None
+        self.make_format_info_label()
 
         self.info_linebreak = QLabel(self.linebreak)
         self.l.addWidget(self.info_linebreak)
@@ -85,7 +92,7 @@ class FormattingDialog(QDialog):
         self.l.addSpacing(self.spacing)
 
         # obsidian note title format
-        self.title_format_label = QLabel('Note title format:', self)
+        self.title_format_label = QLabel('<b>Note title format:</b>', self)
         self.l.addWidget(self.title_format_label)
 
         self.title_format_input = QLineEdit(self)
@@ -97,7 +104,7 @@ class FormattingDialog(QDialog):
         self.l.addSpacing(self.spacing)
 
         # obsidian note body format
-        self.body_format_label = QLabel('Note body format:', self)
+        self.body_format_label = QLabel('<b>Note body format:</b>', self)
         self.l.addWidget(self.body_format_label)
 
         self.body_format_input = QPlainTextEdit(self)
@@ -109,7 +116,7 @@ class FormattingDialog(QDialog):
         self.l.addSpacing(self.spacing)
 
         # obsidian no notes body format
-        self.no_notes_format_label = QLabel('Body format for highlights without notes (if empty, defaults to the above):',
+        self.no_notes_format_label = QLabel('<b>Body format for highlights without notes</b> (if empty, defaults to the above):',
                                             self)
         self.l.addWidget(self.no_notes_format_label)
 
@@ -122,14 +129,8 @@ class FormattingDialog(QDialog):
         self.l.addSpacing(self.spacing)
 
         # label for header formatting options
-        self.header_format_label = QLabel('Header format (cannot use highlight-specific formatting options):', self)
+        self.header_format_label = QLabel('<b>Header format</b> (avoid highlight-specific data like {highlight} or {url}):', self)
         self.l.addWidget(self.header_format_label)
-
-        # checkbox to disable or enable using header
-        self.header_checkbox = QCheckBox("Use header when sending highlights")
-        if prefs['use_header']:
-            self.header_checkbox.setChecked(True)
-        self.l.addWidget(self.header_checkbox)
 
         # text box for header formatting options
         self.header_format_input = QPlainTextEdit(self)
@@ -137,6 +138,12 @@ class FormattingDialog(QDialog):
         self.header_format_input.setPlaceholderText("Header format...")
         self.l.addWidget(self.header_format_input)
         self.header_format_label.setBuddy(self.header_format_input)
+
+        # checkbox to disable or enable using header
+        self.header_checkbox = QCheckBox("Use header when sending highlights")
+        if prefs['use_header']:
+            self.header_checkbox.setChecked(True)
+        self.l.addWidget(self.header_checkbox)
 
         self.l.addSpacing(self.spacing)
 
@@ -147,7 +154,7 @@ class FormattingDialog(QDialog):
         self.buttons.rejected.connect(self.cancel_button)
         self.l.addWidget(self.buttons)
 
-    def make_format_info_labels(self):
+    def make_format_info_label(self):
 
         # list of formatting options
         format_options = [
@@ -178,10 +185,9 @@ class FormattingDialog(QDialog):
                 char_count = 0
         strs.append(f_opt_str[start_idx:])
 
-        for s in strs:
-            label = QLabel(s, self)
-            self.note_format_list_labels.append(label)
-            self.l.addWidget(label)
+        one_str = "<br/>".join(strs)
+        self.note_format_list_label = QLabel(one_str, self)
+        self.l.addWidget(self.note_format_list_label)
 
         time_note = QLabel("Note that times are the time the highlight was made, not the current time " + \
                            "(except 'utcnow' and 'localnow').")
@@ -207,12 +213,12 @@ class OtherConfigDialog(QDialog):
         QDialog.__init__(self)
         self.l = QVBoxLayout()
         self.setLayout(self.l)
-        self.linebreak = "=" * 80
+        self.linebreak = "=" * 50
         self.spacing = 20  # pixels
 
         self.setWindowTitle("Highlights to Obsidian: Other Configuration Options")
 
-        self.title_label = QLabel("Other configuration options")
+        self.title_label = QLabel("<b>Highlights to Obsidian Other Options</b>")
         self.l.addWidget(self.title_label)
         self.title_linebreak = QLabel(self.linebreak)
         self.l.addWidget(self.title_linebreak)
@@ -220,7 +226,7 @@ class OtherConfigDialog(QDialog):
         self.l.addSpacing(self.spacing)
 
         # obsidian vault name
-        self.vault_label = QLabel('Obsidian vault name:', self)
+        self.vault_label = QLabel('<b>Obsidian vault name:</b>', self)
         self.l.addWidget(self.vault_label)
 
         self.vault_input = QLineEdit(self)
@@ -232,9 +238,9 @@ class OtherConfigDialog(QDialog):
         self.l.addSpacing(self.spacing)
 
         # sort key
-        self.sort_label = QLabel("Sort key: used to sort highlights that get sent to the same file. "
-                                 + "(Sort key can be any of the formatting option. No brackets. "
-                                 + "For example, timestamp or location.)", self)
+        self.sort_label = QLabel("<b>Sort key:</b> used to sort highlights that get sent to the same file.<br/>"
+                                 + "(Sort keys can be any of H2O's formatting options. No brackets. "
+                                 + "For example, <br/>timestamp or location.)", self)
         self.l.addWidget(self.sort_label)
 
         self.sort_input = QLineEdit(self)
@@ -245,11 +251,11 @@ class OtherConfigDialog(QDialog):
         self.l.addSpacing(self.spacing)
 
         # time setting
-        self.time_label = QLabel('Last time highlights were sent (highlights made after this are considered new)', self)
+        self.time_label = QLabel('<b>Last time highlights were sent</b> (highlights made after this are considered new)', self)
         self.l.addWidget(self.time_label)
 
         # time format info
-        self.time_format_label = QLabel("Time must be formatted: \"YYYY-MM-DD hh:mm:ss\"")
+        self.time_format_label = QLabel("Time must be formatted \"YYYY-MM-DD hh:mm:ss\"")
         self.l.addWidget(self.time_format_label)
 
         self.time_input = QLineEdit(self)
