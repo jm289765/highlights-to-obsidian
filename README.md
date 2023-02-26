@@ -38,6 +38,9 @@ Available formatting options are as follows:
 - {url}: A [calibre:// url](https://manual.calibre-ebook.com/url_scheme.html) to open the ebook viewer to this highlight. Note that this may not work if your library's name contains unsafe URL characters. Numbers, letters, spaces, underscores, and hyphens are all safe.
 - {location}: The highlight's EPUB CFI location in the book. For example, "/2/8/6/5:192". As a sort key, this will order highlights by their position in the book.
 - {timestamp}: The highlight's Unix timestamp. This is the default sort key used to determine what order to send highlights in.
+- {totalsent}: The total number of highlights being sent.
+- {booksent}: The total number of highlights being sent to this Obsidian note.
+- {highlightsent}: This highlight's position in the highlights being sent to this note. For example, "{highlightsent} out of {booksent}" might result in "3 out of 5".
 - {bookid}: The book's ID in calibre. 
 - {uuid}: The highlight's unique ID in calibre. For example, "TlNlh8_I5VGKUtqdfbOxDw".
 

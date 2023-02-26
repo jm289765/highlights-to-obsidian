@@ -172,6 +172,8 @@ class FormattingDialog(QDialog):
             "localyear", "utcnow",
             "localnow", "url",
             "location", "timestamp",
+            "totalsent", "booksent",
+            "highlightsent",
             "bookid", "uuid",
         ]
         f_opt_str = "'" + "', '".join(format_options) + "'"

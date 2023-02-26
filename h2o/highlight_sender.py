@@ -1,8 +1,9 @@
 import time
 import webbrowser
-from typing import Dict, List, Callable, Any
+from typing import Dict, List, Callable, Any, Tuple
 from urllib.parse import urlencode, quote
 import datetime
+import re as regex
 
 # avoid importing anything from calibre or the highlights_to_obsidian plugin here
 
@@ -170,7 +171,6 @@ def make_book_format_dict(data: Dict, book_titles_authors: Dict[int, Dict[str, s
     title_authors = book_titles_authors.get(int(data["book_id"]), {})  # dict with {"title": str, "authors": Tuple[str]}
 
     format_options = {
-        # if you add a key to this dict, also update the format_options local variable in config.py
         "title": title_authors.get("title", "Untitled"),  # title of book
         # todo: add "chapter" option
         "authors": title_authors.get("authors", ("Unknown",)),  # authors of book
@@ -178,6 +178,25 @@ def make_book_format_dict(data: Dict, book_titles_authors: Dict[int, Dict[str, s
     }
 
     return format_options
+
+
+def make_sent_format_dict(total_sent, book_sent, highlight_sent) -> Dict[str, str]:
+    """
+    inputs will be converted to strings.
+
+    :param total_sent: total number of highlights being sent
+    :param book_sent: total number of highlights being sent for this book
+    :param highlight_sent: this highlight's position in the highlights being sent to this book, e.g. 5 if it's
+     the fifth highlight.
+    :return: dict containing a format option for each of the params
+    """
+    sent_dict = {
+        "totalsent": str(total_sent),  # total highlights sent
+        "booksent": str(book_sent),  # highlights for this book
+        "highlightsent": str(highlight_sent),  # position of this highlight
+    }
+
+    return sent_dict
 
 
 def make_format_dict(data, calibre_library: str, book_titles_authors: Dict[int, Dict[str, str]]) -> Dict[str, str]:
@@ -189,11 +208,20 @@ def make_format_dict(data, calibre_library: str, book_titles_authors: Dict[int, 
     """
 
     # formatting options are based on https://github.com/jplattel/obsidian-clipper
+
+    # if you add a format option, also update the format_options local variable in config.py and the docs in README.md
     time_options = make_time_format_dict(data)
     highlight_options = make_highlight_format_dict(data, calibre_library)
     book_options = make_book_format_dict(data, book_titles_authors)
 
-    return time_options | highlight_options | book_options  # | merges dictionaries https://peps.python.org/pep-0584/
+    # these formatting options can't be calculated by the time make_format_dict is called.
+    # actually, totalsent probably could be, but let's keep it here with the others.
+    # we need to include this so that string.format() doesn't error if it runs into one of these
+    placeholders = make_sent_format_dict("{totalsent}", "{booksent}", "{highlightsent}")
+
+    # the | operator merges dictionaries https://peps.python.org/pep-0584/
+    # could also pass a dict as a param to each make_x_dict, and have them update it in place
+    return time_options | highlight_options | book_options | placeholders
 
 
 class HighlightSender:
@@ -258,6 +286,28 @@ class HighlightSender:
         # todo: verify that the sort key is valid
         self.sort_key = sort_key
 
+    def apply_sent_formats(self) -> Tuple[bool, bool, bool]:
+        """
+        since formatting options for how many highlights were sent can't be applied until after the other formatting
+        options are applied, they'll end up being applied to formatted strings instead of templates. depending on
+        the content of those highlights, you could end up with very large strings. this function is a small performance
+        boost: it'll only try to apply those formatting options if said formatting options are in templates.
+
+        an alternative to this is to only format titles, and then count how many highlights will be sent to each
+        note before you apply formatting to the body.
+
+        :return: Tuple telling you if you need to apply formatting options for how many highlights were sent. Tuple is
+        (title, body, header), where each item is True if that part needs formatting to be applied.
+        """
+        format_dict = make_sent_format_dict(0, 0, 0)
+        formats = ("{" + k + "}" for k in format_dict.keys())
+        title, body, header = False, False, False
+        for f in formats:
+            title = title or (f in self.title_format)
+            body = body or (f in self.body_format) or (f in self.no_notes_format)
+            header = header or (f in self.header_format)
+        return title, body, header
+
     def make_obsidian_data(self, note_file, note_content):
         """
         limits length of note_file to 180 characters, allowing for an obsidian vault path of up to 80
@@ -320,8 +370,8 @@ class HighlightSender:
         """
 
         # todo: a lot of the lists used here and in related functions could probably be replaced with tuples
-        
-        def is_valid_highlight(_dat:Dict):
+
+        def is_valid_highlight(_dat: Dict):
             """
             :param _dat: a dict with one calibre annotation's data
             :return: True if this is a valid highlight and should be sent, else False
@@ -329,7 +379,7 @@ class HighlightSender:
             _annot = _dat.get("annotation", {})
             if _annot.get("type") != "highlight":
                 return False  # annotation must be a highlight, not a bookmark
-            
+
             if _annot.get("removed"):
                 return False  # don't try to send highlights that have been removed
 
@@ -356,7 +406,7 @@ class HighlightSender:
 
             _dats.append([formatted, self.format_sort_key(dat)])
 
-        def merge_highlights(data):
+        def merge_highlights(data, _headers):
             """
             merges formatted highlights into a single string for each unique note title found in dats.
 
@@ -365,18 +415,23 @@ class HighlightSender:
 
             for reference, format_data() output is a list of [title, body]
 
-            :param data: List[List[format_data() output, sort_key]]
+            :param data: list of all formatted highlights: List[List[format_data() output, sort_key]]
+            :param _headers: formatted headers: dict[note_title:str, header:str]. sent amount formatting will be applied
+            in-place.
             :return: list of obsidian_data objects, where each unique title from the input is merged into a
             single, sorted item in the output.
             """
 
-            def add_data_item(_dat, _books, _lengths):
+            def add_data_item(_dat, _books, _lengths, _counts):
                 """
                 :param _dat: data item: [[title, body], sort_key]
-                :param _books: dict that will be updated in-place. will have an obsidian_data object and sort key
-                added to a note title. like _books["title"].append([obsidian_data, sort_key]). automatically handles
+                :param _books: dict that will be updated in-place. will have a format_data() output and sort key
+                added to a note title. like _books["title"].append([formatted_body, sort_key]). automatically handles
                 cases where "title" is not in _books.
                 :param _lengths: dict that may be updated in-place, used for tracking cumulative length of highlights
+                :param _counts: dict of {title, int} for how many highlights each book has. can't be done by taking
+                length of _books[title] because _books splits large amounts of highlights for a single title into
+                more than one title with a smaller amount of highlights each.
                 :return: none
                 """
                 format_dat = _dat[0]  # list[title, body]
@@ -402,22 +457,110 @@ class HighlightSender:
 
                 if base_title in _lengths:
                     _lengths[base_title] += len(body_and_sort[0])
+                    _counts[base_title] += 1
                 else:
                     _lengths[base_title] = len(body_and_sort[0])
+                    _counts[base_title] = 1
+
+            def apply_sent_amount_format(_books: Dict[str, List], _headers: Dict[str, str],
+                                         total_highlights: int, book_highlights: Dict[str, int]):
+                """
+                :param _books: formatted highlights being sent to each book (will be updated in-place):
+                dict[title:str, list[list[formatted_body, sort_key]]
+                :param _headers: formatted headers: dict[note_title:str, header:str]. sent amount formatting will be
+                 applied in-place.
+                :param total_highlights: total number of highlights being sent
+                :param book_highlights: Dict[title, int] that has the amount of highlights being sent to each book.
+                :return: none
+                """
+                # todo: _books and _headers being updated in-place is a source of bugs. change it
+                should_apply = self.apply_sent_formats()
+                if True not in should_apply:
+                    return
+
+                def get_base_title(_title: str, _valid_titles: List[str]) -> str:
+                    """if this is part of a split note, e.g. "title (1)" or "title (2)", remove the " (x)" """
+                    # todo: change the data format for split note titles, so that you can simplify this
+                    _ret = _title
+                    # space, parentheses, number, parentheses, end of string
+                    __match = regex.search(" \((\d+)\)$", t)
+                    if __match:
+                        base = t[:t.rfind(" ")]
+                        if base in _valid_titles:
+                            _ret = base
+                    return _ret
+
+                if should_apply[0]:  # title
+                    # use list(_books.keys()) so that we don't get an error by changing dict keys during iteration
+                    _b = list(_books.keys())
+                    for t in _b:  # t: book title (str)
+
+                        base_title = get_base_title(t, _b)
+
+                        fmt = make_sent_format_dict(total_highlights, book_highlights[base_title], -1)
+                        new_title = t.format(**fmt)
+                        _books[new_title] = _books[t]
+                        del _books[t]
+                        if t in _headers:
+                            _headers[new_title] = _headers[t]
+                            del _headers[t]
+                        if t in book_highlights:
+                            book_highlights[new_title] = book_highlights[t]
+
+                if should_apply[1]:  # body
+                    valid_titles = list(_books.keys())
+                    for t in _books:  # t: book title (str)
+                        def count_highlights_before(_title, _base, __books) -> int:
+                            """
+                            if a highlight has " (x)" at the end, count the highlights being sent to previous notes
+
+                            :param _title: title of the note these highlights are being sent to
+                            :param _base: base title for this title
+                            :param __books: dict[title, list[highlights]]
+                            :return: number of highlights in notes with same base title but a lower x in their " (x)"
+                            """
+                            _ret = 0
+                            _b, _t = len(_base), len(_title)
+                            if _b != _t:
+                                title_number = int(_title[_b + 2:-1])  # t is base title + " (num)"
+                                _ret = len(__books[_base])
+                                for x in range(1, title_number):
+                                    _ret += len(__books[_base + f" ({x})"])
+
+                            return _ret
+
+                        base_title = get_base_title(t, valid_titles)
+                        highlights_before = count_highlights_before(t, base_title, _books)
+
+                        for h in range(len(_books[t])):  # _books[h]: [formatted body, sort_key]
+                            fmt = make_sent_format_dict(total_highlights, book_highlights[base_title],
+                                                        highlights_before + h + 1)
+                            _books[t][h][0] = _books[t][h][0].format(**fmt)
+
+                if should_apply[2]:  # header
+                    for h in _headers:  # h: book title (str)
+                        fmt = make_sent_format_dict(total_highlights, book_highlights[h], -1)
+                        _headers[h] = _headers[h].format(**fmt)
 
             books = {}  # dict[title:str, list[list[obsidian_data object:Dict, sort_key]]
-            lengths = {}  # dict[book title:str, int]
+            lengths = {}  # amount of characters per book. dict[book title:str, int]
+            counts = {}  # amount of highlights per book. dict[book title:str, int]
 
             # make list of highlights for each note title
             for d in data:
-                add_data_item(d, books, lengths)
+                add_data_item(d, books, lengths, counts)
+
+            # sort books here to that apply_sent_amount_format gives accurate position of highlight in note
+            for key in books:
+                books[key].sort(key=lambda body_sort: body_sort[1])
+
+            apply_sent_amount_format(books, headers, len(data), counts)
 
             # now, `books` contains lists of unsorted [note body, sort key] objects
             ret = []
 
             # sort each book's highlights and then merge them into a single string
             for key in books:
-                books[key].sort(key=lambda body_sort: body_sort[1])
                 # header is only included in first of a series of same-book files
                 # (this happens when there's too much text to send to a single file at once)
                 text = headers.get(key, "") + "".join([a[0] for a in books[key]])
@@ -426,15 +569,15 @@ class HighlightSender:
             return ret
 
         highlights = filter(is_valid_highlight, self.annotations_list)  # annotations["annotations"])
-        dats = []  # List[List[obsidian_data, sort_key]]
-        headers = {}  # dict[note_title:str, header:str]
+        dats = []  # formatted titles and bodies: List[List[format_data() output, sort_key]]
+        headers = {}  # formatted headers: dict[note_title:str, header:str]
 
         # make formatted titles, bodies, and headers
         for highlight in highlights:
             format_add_highlight(highlight, dats, headers)
 
         # todo: sometimes, if obsidian isn't already open, not all highlights get sent
-        merged = merge_highlights(dats)
+        merged = merge_highlights(dats, headers)
         for obsidian_dat in merged:
             send_item_to_obsidian(obsidian_dat)
 
