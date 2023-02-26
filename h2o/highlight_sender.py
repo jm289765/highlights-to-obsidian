@@ -68,12 +68,59 @@ def format_header(dat: Dict[str, str], header_format: str) -> str:
     return header_format.format(**dat)
 
 
-def make_format_dict(data, calibre_library: str, book_titles_authors: Dict[int, Dict[str, str]]) -> Dict:
+def make_time_format_dict(data: Dict) -> Dict[str, str]:
     """
+
     :param data: json object of a calibre highlight
-    :param calibre_library: name of the calibre library, to make a url to the highlight
-    :param book_titles_authors: dictionary mapping book ids to their titles and authors
-    :return:
+    :return: dict containing all time-related formatting options
+    """
+
+    annot = data["annotation"]
+
+    # calibre's time format example: "2022-09-10T20:32:08.820Z"
+    # the "Z" at the end means UTC time
+    # "%Y-%m-%dT%H:%M:%S", take [:19] of the timestamp to remove milliseconds
+    # better alternative might be dateutil.parser.parse
+    h_time = datetime.datetime.strptime(annot["timestamp"][:19], "%Y-%m-%dT%H:%M:%S")
+    h_local = h_time + h_time.astimezone(datetime.datetime.now().tzinfo).utcoffset()
+    local = time.localtime()
+    utc = time.gmtime()
+    utc_offset = ("" if local.tm_gmtoff < 0 else "+") + str(local.tm_gmtoff // 3600) + ":00"
+
+    time_options = {
+        "date": str(h_time.date()),  # utc date highlight was made
+        "localdate": str(h_local.date()),
+        # local date highlight was made. "local" based on send time, not highlight time
+        "time": str(h_time.time()),  # utc time highlight was made
+        "localtime": str(h_local.time()),  # local time highlight was made
+        "datetime": str(h_time),
+        "localdatetime": str(h_local),
+        # calibre uses local time when making annotations. see function "render_timestamp"
+        # https://github.com/kovidgoyal/calibre/blob/master/src/calibre/gui2/library/annotations.py#L34
+        # todo: timezone currently displays "Coordinated Universal Time" instead of the abbreviation, "UTC"
+        "timezone": h_local.tzname(),  # local timezone
+        "utcoffset": utc_offset,
+        "timeoffset": utc_offset,  # for backwards compatibility
+        "day": str(h_time.day),
+        "localday": str(h_local.day),
+        "month": str(h_time.month),
+        "localmonth": str(h_local.month),
+        "year": str(h_time.year),
+        "localyear": str(h_local.year),
+        "utcnow": time.strftime("%Y-%m-%d %H:%M:%S", utc),
+        "localnow": time.strftime("%Y-%m-%d %H:%M:%S", local),
+        "timestamp": str(h_time.timestamp()),  # Unix timestamp of highlight time. uses UTC.
+    }
+
+    return time_options
+
+
+def make_highlight_format_dict(data: Dict, calibre_library: str) -> Dict[str, str]:
+    """
+
+    :param data: json object of a calibre highlight
+    :param calibre_library: name of library book is found in. used for making a url to the highlight.
+    :return: dict containing all highlight-related formatting options.
     """
 
     def format_blockquote(text: str) -> str:
@@ -101,55 +148,52 @@ def make_format_dict(data, calibre_library: str, book_titles_authors: Dict[int, 
         "location": "/" + str((annot["spine_index"] + 1) * 2) + annot["start_cfi"],
     }
 
-    # calibre's time format example: "2022-09-10T20:32:08.820Z"
-    # the "Z" at the end means UTC time
-    # "%Y-%m-%dT%H:%M:%S", take [:19] of the timestamp to remove milliseconds
-    # better alternative might be dateutil.parser.parse
-    h_time = datetime.datetime.strptime(annot["timestamp"][:19], "%Y-%m-%dT%H:%M:%S")
-    h_local = h_time + h_time.astimezone(datetime.datetime.now().tzinfo).utcoffset()
-    local = time.localtime()
-    utc = time.gmtime()
-    title_authors = book_titles_authors.get(int(data["book_id"]), {})  # dict with {"title": str, "authors": Tuple[str]}
-    utc_offset = ("" if local.tm_gmtoff < 0 else "+") + str(local.tm_gmtoff // 3600) + ":00"
+    highlight_format = {
+        "highlight": annot["highlighted_text"],  # highlighted text
+        "blockquote": format_blockquote(annot["highlighted_text"]),  # block-quoted highlight
+        "notes": annot["notes"] if "notes" in annot else "",  # user's notes on this highlight
+        "url": url_format.format(**url_args),  # calibre:// url to open ebook viewer to this highlight
+        "location": url_args["location"],  # epub cfi location of this highlight
+        "uuid": annot["uuid"],  # highlight's ID in calibre
+    }
 
-    # based on https://github.com/jplattel/obsidian-clipper
+    return highlight_format
+
+
+def make_book_format_dict(data: Dict, book_titles_authors: Dict[int, Dict[str, str]]) -> Dict[str, str]:
+    """
+
+    :param data: json object of a calibre highlight
+    :param book_titles_authors: dictionary mapping book ids to {"title": title, "authors": authors}
+    :return: dict containing all book-related formatting options
+    """
+    title_authors = book_titles_authors.get(int(data["book_id"]), {})  # dict with {"title": str, "authors": Tuple[str]}
+
     format_options = {
         # if you add a key to this dict, also update the format_options local variable in config.py
         "title": title_authors.get("title", "Untitled"),  # title of book
         # todo: add "chapter" option
         "authors": title_authors.get("authors", ("Unknown",)),  # authors of book
-        "highlight": annot["highlighted_text"],  # highlighted text
-        "blockquote": format_blockquote(annot["highlighted_text"]),  # block-quoted highlight
-        "notes": annot["notes"] if "notes" in annot else "",  # user's notes on this highlight
-        "date": str(h_time.date()),  # utc date highlight was made
-        "localdate": str(h_local.date()),
-        # local date highlight was made. "local" based on send time, not highlight time
-        "time": str(h_time.time()),  # utc time highlight was made
-        "localtime": str(h_local.time()),  # local time highlight was made
-        "datetime": str(h_time),
-        "localdatetime": str(h_local),
-        # calibre uses local time when making annotations. see function "render_timestamp"
-        # https://github.com/kovidgoyal/calibre/blob/master/src/calibre/gui2/library/annotations.py#L34
-        # todo: timezone currently displays "Coordinated Universal Time" instead of the abbreviation, "UTC"
-        "timezone": h_local.tzname(),  # local timezone
-        "utcoffset": utc_offset,
-        "timeoffset": utc_offset,  # for backwards compatibility
-        "day": str(h_time.day),
-        "localday": str(h_local.day),
-        "month": str(h_time.month),
-        "localmonth": str(h_local.month),
-        "year": str(h_time.year),
-        "localyear": str(h_local.year),
-        "utcnow": time.strftime("%Y-%m-%d %H:%M:%S", utc),
-        "localnow": time.strftime("%Y-%m-%d %H:%M:%S", local),
-        "url": url_format.format(**url_args),  # calibre:// url to open ebook viewer to this highlight
-        "location": url_args["location"],  # epub cfi location of this highlight
-        "timestamp": h_time.timestamp(),  # Unix timestamp of highlight time. uses UTC.
         "bookid": data["book_id"],
-        "uuid": annot["uuid"],  # highlight's ID in calibre
     }
 
     return format_options
+
+
+def make_format_dict(data, calibre_library: str, book_titles_authors: Dict[int, Dict[str, str]]) -> Dict[str, str]:
+    """
+    :param data: json object of a calibre highlight
+    :param calibre_library: name of the calibre library, to make a url to the highlight
+    :param book_titles_authors: dictionary mapping book ids to {"title": title, "authors": authors}
+    :return: dict[str, str] containing formatting options
+    """
+
+    # formatting options are based on https://github.com/jplattel/obsidian-clipper
+    time_options = make_time_format_dict(data)
+    highlight_options = make_highlight_format_dict(data, calibre_library)
+    book_options = make_book_format_dict(data, book_titles_authors)
+
+    return time_options | highlight_options | book_options  # | merges dictionaries https://peps.python.org/pep-0584/
 
 
 class HighlightSender:
@@ -275,30 +319,46 @@ class HighlightSender:
         condition takes a highlight's json object and returns true if that highlight should be sent to obsidian.
         """
 
-        highlights = filter(lambda a: a.get("annotation", {}).get("type") == "highlight",
-                            self.annotations_list)  # annotations["annotations"])
-        dats = []  # List[List[obsidian_data, sort_key]]
-        headers = {}  # dict[note_title:str, header:str]
+        # todo: a lot of the lists used here and in related functions could probably be replaced with tuples
+        
+        def is_valid_highlight(_dat:Dict):
+            """
+            :param _dat: a dict with one calibre annotation's data
+            :return: True if this is a valid highlight and should be sent, else False
+            """
+            _annot = _dat.get("annotation", {})
+            if _annot.get("type") != "highlight":
+                return False  # annotation must be a highlight, not a bookmark
+            
+            if _annot.get("removed"):
+                return False  # don't try to send highlights that have been removed
 
-        for highlight in highlights:
-            if highlight["annotation"].get("removed", False):
-                continue  # don't try to send highlights that have been removed
+            if not condition(_dat):
+                return False  # user-defined condition must be true for this highlight
 
-            if not condition(highlight):
-                continue
+            return True
 
-            dat = make_format_dict(highlight, self.library_name, self.book_titles_authors)
+        def format_add_highlight(_highlight, _dats, _headers):
+            """
+            makes a formatted highlight from an annotation data object, then updates _dats and _headers.
+
+            :param _highlight: a calibre annotation object
+            :param _dats: list to be updated in-place. a list [format_data() output, sort_key] will be appended.
+            :param _headers: dict to be updated in-place. if we come across a title that's not in the dict,
+            a formatted header will be made for that title.
+            :return: none
+            """
+            dat = make_format_dict(_highlight, self.library_name, self.book_titles_authors)
             formatted = format_data(dat, self.title_format, self.body_format, self.no_notes_format)
 
-            if formatted[0] not in headers:
-                headers[formatted[0]] = format_header(dat, self.header_format)
+            if formatted[0] not in _headers:  # only make one header per title
+                _headers[formatted[0]] = format_header(dat, self.header_format)
 
-            dats.append([formatted, self.format_sort_key(dat)])
+            _dats.append([formatted, self.format_sort_key(dat)])
 
         def merge_highlights(data):
             """
-            returns a dictionary with formatted highlights merged into a single string for each
-            unique formatted note title found in dats.
+            merges formatted highlights into a single string for each unique note title found in dats.
 
             This limits the length of merged note contents to 20000 characters. If the length exceeds this, extra
             highlights will use a different title, e.g. "The Book", "The Book (1)", etc
@@ -309,14 +369,18 @@ class HighlightSender:
             :return: list of obsidian_data objects, where each unique title from the input is merged into a
             single, sorted item in the output.
             """
-            # this function has too many nested index lookups, it could use some simplification
 
-            books = {}  # dict[str, list[list[obsidian_data object, sort_key]]
-            lengths = {}
-            # make list of highlights for each note title
-            for d in data:
-                format_dat = d[0]  # list[title, body]
-                body_and_sort = [format_dat[1], d[1]]  # [note body, sort key]
+            def add_data_item(_dat, _books, _lengths):
+                """
+                :param _dat: data item: [[title, body], sort_key]
+                :param _books: dict that will be updated in-place. will have an obsidian_data object and sort key
+                added to a note title. like _books["title"].append([obsidian_data, sort_key]). automatically handles
+                cases where "title" is not in _books.
+                :param _lengths: dict that may be updated in-place, used for tracking cumulative length of highlights
+                :return: none
+                """
+                format_dat = _dat[0]  # list[title, body]
+                body_and_sort = [format_dat[1], _dat[1]]  # [note body, sort key]
                 base_title = format_dat[0]
 
                 # limit each merged highlight to 20000 chars. it could be higher, but we need room for url encoding.
@@ -325,27 +389,34 @@ class HighlightSender:
                 # problem is some detail about how webbrowser.open() is implemented. on my windows 11 laptop, calling
                 # webbrowser.open("obsidian://" + "a" * 32699) works, but "a" * 32700 will open microsoft edge instead,
                 # and if the number reaches 32757 it gives an error.
-                note_title, l = base_title, lengths.get(base_title, False)
-                if l:  # limit size of a note's content to 20 kb.
+                note_title, l = base_title, _lengths.get(base_title, False)
+                if l:  # start using a different title every 20k characters
                     splits = l // 20000
                     if splits > 0:
                         note_title = base_title + f" ({splits})"
 
-                if note_title in books:
-                    books[note_title].append(body_and_sort)
+                if note_title in _books:
+                    _books[note_title].append(body_and_sort)
                 else:
-                    books[note_title] = [body_and_sort]
+                    _books[note_title] = [body_and_sort]
 
-                if base_title in lengths:
-                    lengths[base_title] += len(body_and_sort[0])
+                if base_title in _lengths:
+                    _lengths[base_title] += len(body_and_sort[0])
                 else:
-                    lengths[base_title] = len(body_and_sort[0])
+                    _lengths[base_title] = len(body_and_sort[0])
 
-            # now, books contains lists of unsorted [note body, sort key] objects
+            books = {}  # dict[title:str, list[list[obsidian_data object:Dict, sort_key]]
+            lengths = {}  # dict[book title:str, int]
+
+            # make list of highlights for each note title
+            for d in data:
+                add_data_item(d, books, lengths)
+
+            # now, `books` contains lists of unsorted [note body, sort key] objects
             ret = []
 
+            # sort each book's highlights and then merge them into a single string
             for key in books:
-                # sort each book's highlights and then merge them into a single string
                 books[key].sort(key=lambda body_sort: body_sort[1])
                 # header is only included in first of a series of same-book files
                 # (this happens when there's too much text to send to a single file at once)
@@ -353,6 +424,14 @@ class HighlightSender:
                 ret.append(self.make_obsidian_data(key, text))
 
             return ret
+
+        highlights = filter(is_valid_highlight, self.annotations_list)  # annotations["annotations"])
+        dats = []  # List[List[obsidian_data, sort_key]]
+        headers = {}  # dict[note_title:str, header:str]
+
+        # make formatted titles, bodies, and headers
+        for highlight in highlights:
+            format_add_highlight(highlight, dats, headers)
 
         # todo: sometimes, if obsidian isn't already open, not all highlights get sent
         merged = merge_highlights(dats)
