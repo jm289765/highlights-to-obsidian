@@ -10,15 +10,17 @@ def help_menu(parent):
     title = "Highlights to Obsidian Help Menu"
     body = "You can update the formatting of highlights sent to Obsidian in this plugin's config menu at " + \
            "Preferences -> Plugins -> User interface action -> Highlights to Obsidian.\n\n" + \
-           "If you don't want your first time sending new highlights to Obsidian to send all highlights, " + \
+           "If you don't want the first time sending new highlights to Obsidian to send all highlights, " + \
            "update the last send time in the config.\n\n" + \
            "In the formatting config menu, the 'title' is the title of the note that a highlight will be " + \
            "sent to. The 'body' is the text that will be sent to that note for each highlight. The " + \
            "'header' will be sent to each note exactly once when you send highlights.\n\n" + \
+           "In a note's title, you can include slashes \"/\" to specify what folder the note should be in.\n\n" + \
            "Sometimes, if you send highlights while your obsidian vault is closed, not all highlights will " + \
            "be sent. If this happens, you can use the \"Resend Previously Sent Highlights\" function.\n\n" + \
-           "You can set keyboard shortcuts in Preferences -> Shortcuts -> H2O. " + \
-           "Some available keyboard shortcuts include CTRL+S, CTRL+E, CTRL+G, CTRL+H, CTRL+J, and CTRL+K."
+           "You can set keyboard shortcuts in calibre's Preferences -> Shortcuts -> H2O.\n\n" + \
+           "Due to URI length limits, H2O can only send a few thousand words to a single note at once. Extra text " \
+           "will be sent to different notes with increasing numbers added to the end of the title."
     info_dialog(parent, title, body, show=True)
 
 
@@ -59,11 +61,11 @@ def send_highlights(parent, db, condition=lambda x: True, update_send_time=True)
             # timezone changes.
             prefs["last_send_time"] = strftime("%Y-%m-%d %H:%M:%S", gmtime())
 
-        info = f"Success: {amt} highlight{' has' if amt == 1 else 's have'} been sent to obsidian."
+        info = f"Success: {amt} highlight{' has' if amt == 1 else 's have'} been sent to Obsidian."
         if prefs['highlights_sent_dialog']:
             info_dialog(parent, "Highlights Sent", info, show=True)
     else:
-        info_dialog(parent, "No Highlights Sent", "No highlights to send.", show=True)
+        info_dialog(parent, "No Highlights Sent", "There are no highlights to send.", show=True)
 
     return amt
 
@@ -100,7 +102,7 @@ def send_all_highlights(parent, db):
     """
     if prefs['confirm_send_all']:
         confirm = QMessageBox()
-        confirm.setText("Are you sure you want to send ALL highlights to obsidian? This cannot be undone.")
+        confirm.setText("Are you sure you want to send ALL highlights to Obsidian? This cannot be undone.")
         confirm.setStandardButtons(QMessageBox.Yes | QMessageBox.No)
         confirm.setIcon(QMessageBox.Question)
         confirmed = confirm.exec()
@@ -151,7 +153,7 @@ def send_all_selected_highlights(parent, db):
 
     if prefs['confirm_send_all']:
         confirm = QMessageBox()
-        confirm.setText("Are you sure you want to send ALL highlights of the selected books to obsidian? This cannot be undone.")
+        confirm.setText("Are you sure you want to send ALL highlights of the selected books to Obsidian? This cannot be undone.")
         confirm.setStandardButtons(QMessageBox.Yes | QMessageBox.No)
         confirm.setIcon(QMessageBox.Question)
         confirmed = confirm.exec()

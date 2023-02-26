@@ -14,7 +14,8 @@ vault_default_name = "My Vault"
 title_default_format = "Books/{title} by {authors}"
 body_default_format = "\n[Highlighted]({url}) on {date} at {time} UTC {timeoffset}:\n{blockquote}\n\n{notes}\n\n---\n"
 no_notes_default_format = "\n[Highlighted]({url}) on {date} at {time} UTC {timeoffset}:\n{blockquote}\n\n---\n"
-header_default_format = ""  # by default, no header
+header_default_format = "\n{booksent} highlights sent to this note on {datenow} at {timenow} UTC.\n\n---\n"
+
 sort_key_default = "location"
 
 
@@ -100,7 +101,9 @@ def make_time_format_dict(data: Dict) -> Dict[str, str]:
         # https://github.com/kovidgoyal/calibre/blob/master/src/calibre/gui2/library/annotations.py#L34
         # todo: timezone currently displays "Coordinated Universal Time" instead of the abbreviation, "UTC"
         "timezone": h_local.tzname(),  # local timezone
+        "localtimezone": h_local.tzname(),  # so that the config menu's explanation doesn't confuse users
         "utcoffset": utc_offset,
+        "localoffset": utc_offset,  # so that the config menu's explanation doesn't confuse users
         "timeoffset": utc_offset,  # for backwards compatibility
         "day": str(h_time.day),
         "localday": str(h_local.day),
@@ -108,8 +111,18 @@ def make_time_format_dict(data: Dict) -> Dict[str, str]:
         "localmonth": str(h_local.month),
         "year": str(h_time.year),
         "localyear": str(h_local.year),
+        "hour": str(h_time.hour),
+        "localhour": str(h_local.hour),
+        "minute": str(h_time.minute),
+        "localminute": str(h_local.minute),
+        "second": str(h_time.second),
+        "localsecond": str(h_local.second),
         "utcnow": time.strftime("%Y-%m-%d %H:%M:%S", utc),
+        "datenow": time.strftime("%Y-%m-%d", utc),
+        "timenow": time.strftime("%H:%M:%S", utc),
         "localnow": time.strftime("%Y-%m-%d %H:%M:%S", local),
+        "localdatenow": time.strftime("%Y-%m-%d", local),
+        "localtimenow": time.strftime("%H:%M:%S", local),
         "timestamp": str(h_time.timestamp()),  # Unix timestamp of highlight time. uses UTC.
     }
 
@@ -208,6 +221,9 @@ def make_format_dict(data, calibre_library: str, book_titles_authors: Dict[int, 
     """
 
     # formatting options are based on https://github.com/jplattel/obsidian-clipper
+
+    # todo: could be optimized by taking as input the formatting options that are needed, and then
+    #  only calculating values for those options
 
     # if you add a format option, also update the format_options local variable in config.py and the docs in README.md
     time_options = make_time_format_dict(data)
@@ -383,7 +399,7 @@ class HighlightSender:
             if _annot.get("removed"):
                 return False  # don't try to send highlights that have been removed
 
-            if not condition(_dat):
+            if not condition(_dat):  # or return condition(_dat)
                 return False  # user-defined condition must be true for this highlight
 
             return True

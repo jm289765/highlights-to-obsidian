@@ -161,19 +161,14 @@ class FormattingDialog(QDialog):
         # list of formatting options
         format_options = [
             "title", "authors",
-            "highlight", "blockquote",
-            "notes", "date",
-            "localdate", "time",
-            "localtime", "datetime",
-            "localdatetime", "timezone",
-            "utcoffset", "day",
-            "localday", "month",
-            "localmonth", "year",
-            "localyear", "utcnow",
-            "localnow", "url",
-            "location", "timestamp",
-            "totalsent", "booksent",
-            "highlightsent",
+            "highlight", "blockquote", "notes",
+            "date", "time", "datetime",
+            "day", "month", "year",
+            "hour", "minute", "second",
+            "utcnow", "datenow", "timenow",
+            "timezone", "utcoffset",
+            "url", "location", "timestamp",
+            "totalsent", "booksent", "highlightsent",
             "bookid", "uuid",
         ]
         f_opt_str = "'" + "', '".join(format_options) + "'"
@@ -193,8 +188,12 @@ class FormattingDialog(QDialog):
         self.note_format_list_label = QLabel(one_str, self)
         self.l.addWidget(self.note_format_list_label)
 
-        time_note = QLabel("Note that times are the time the highlight was made, not the current time " + \
-                           "(except 'utcnow' and 'localnow').")
+        local_note = QLabel("All times use UTC by default. To use local time instead, add 'local' " +
+                            "to the beginning: {localdatetime}, {localnow}, etc.")
+        self.l.addWidget(local_note)
+
+        time_note = QLabel("Note that all times, except 'now' times, are the time the highlight was made, not the " +
+                           "current time.")
         self.l.addWidget(time_note)
 
     def save_settings(self):
