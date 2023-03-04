@@ -1,17 +1,18 @@
 
 # Highlights to Obsidian
 
-Highlights to Obsidian is a plugin for the calibre ebook manager that formats and sends highlights to Obsidian.md markdown editor. This plugin [can be found](https://www.mobileread.com/forums/showthread.php?t=351283) on the calibre forum.
+Highlights to Obsidian is a plugin for the [calibre ebook manager](https://calibre-ebook.com/) that formats and sends highlights to [Obsidian.md markdown editor](https://obsidian.md/). This plugin has a thread [on the calibre forum](https://www.mobileread.com/forums/showthread.php?t=351283).
 
 After installing, go to Preferences -> Toolbars & menus -> The main toolbar. The Highlights to Obsidian menu button is listed as H2O.
 
-1. [[#Useful Info]]
-2. [[#Formatting Options]]
-3. [[#Misc]]
+1. [Useful Info](#info)
+2. [Formatting Options](#formatting)
+3. [Misc](#misc)
 
+<a name="info"></a>
 ## Useful Info
 
-- You can update the formatting of highlights sent to Obsidian in the config menu at Preferences -> Plugins -> User interface action -> Highlights to Obsidian.
+- You can change how highlights are formatted in the config menu or at Preferences -> Plugins -> User interface action -> Highlights to Obsidian.
 
 - If you don't want the first time sending new highlights to send all of your highlights, you can update the last send time in the config.
 
@@ -25,25 +26,26 @@ After installing, go to Preferences -> Toolbars & menus -> The main toolbar. The
 
 - Due to URI length limits, H2O can only send a few thousand words to a single note at once. Extra text will be sent to different notes with increasing numbers added to the end of the title.
 
+<a name="formatting"></a>
 ## Formatting Options
 
-For an example of how to use these, see the default format settings in the plugin's config menu.
+![](/images/formatting-options.png)
 
-**Book:**
+**Book Data:**
 - {title}: Title of the book the highlight is in.
 - {authors}: Authors of the book the highlight is in.
 - {bookid}: The book's ID in calibre. 
 
-**Highlight:**
+**Highlight Data:**
 - {highlight}: The highlighted text.
-- {blockquote}: The highlighted text, formatted as a blockquote. an arrow and a space "> " are added to the beginning of each line.
+- {blockquote}: The highlighted text, formatted as a blockquote. An arrow and a space "> " are added to the beginning of each line.
 - {notes}: The user's notes on this highlight, if any notes exist. There is a config option that allows you to set different formatting depending on whether a highlight includes notes.
-- {url}: A [calibre:// url](https://manual.calibre-ebook.com/url_scheme.html) to open the ebook viewer to this highlight. Note that this may not work if your library's name contains unsafe URL characters. Numbers, letters, spaces, underscores, and hyphens are all safe.
+- {url}: A [calibre url](https://manual.calibre-ebook.com/url_scheme.html) to open the ebook viewer to this highlight. Note that this may not work if your library's name contains unsafe URL characters. Numbers, letters, spaces, underscores, and hyphens are all safe.
 - {location}: The highlight's EPUB CFI location in the book. For example, "/2/8/6/5:192". As a sort key, this will order highlights by their position in the book.
 - {timestamp}: The highlight's Unix timestamp. As a sort key, this will order highlights by when they were made.
 - {uuid}: The highlight's unique ID in calibre. For example, "TlNlh8_I5VGKUtqdfbOxDw".
 
-**Time:**
+**Time Data:**
 - {date}: Date the highlight was made, formatted as YYYY-MM-DD.
 - {time}: Time the highlight was made, formatted as HH:MM:SS.
 - {datetime}: Date and time highlight was made, formatted as YYYY-MM-DD HH:MM:SS.
@@ -60,11 +62,14 @@ For an example of how to use these, see the default format settings in the plugi
 - {utcoffset}: The UTC offset of your computer's current time zone. For example, UTC time gives +0:00. EST time can be -4:00 or -5:00, depending on daylight savings time.
 - All time options use UTC by default. To use your computer's local time zone instead, add "local" to the beginning: {localdate}, {localtime}, {localdatetime}, {localday}, {localmonth}, {localyear}, {localhour}, {localminute}, {localsecond}, {localnow}, {localdatenow}, {localtimenow}.
 
-**Highlights to Obsidian:**
+**H2O Data:**
 - {totalsent}: The total number of highlights being sent.
 - {booksent}: The total number of highlights being sent to this Obsidian note.
 - {highlightsent}: This highlight's position in the highlights being sent to this note. For example, "{highlightsent} out of {booksent}" might result in "3 out of 5".
 
+![](/images/send-success.png)
+
+<a name="misc"></a>
 ## Misc
 
 This plugin is loosely based on the [Obsidian Clipper](https://github.com/jplattel/obsidian-clipper) Chrome extension.
