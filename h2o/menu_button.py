@@ -54,12 +54,12 @@ class MenuButton(InterfaceAction):
         nh = "Send New Highlights to Obsidian"
         nhd = "Send new highlights to Obsidian"
         self.new_highlights_action = ma(un + nh, nh, description=nhd, shortcut=None, triggered=self.send_new)
-        rh = "Resend Highlights to Obsidian"
-        rhd = "Resend last highlights sent to Obsidian"
-        self.resend_highlights_action = ma(un + rh, rh, description=rhd, shortcut=None, triggered=self.resend)
         ah = "Send All Highlights to Obsidian"
         ahd = "Send all highlights of all books Obsidian"
         self.all_highlights_action = ma(un + ah, ah, description=ahd, shortcut=None, triggered=self.send_all)
+        rh = "Resend Highlights to Obsidian"
+        rhd = "Resend last highlights sent to Obsidian"
+        self.resend_highlights_action = ma(un + rh, rh, description=rhd, shortcut=None, triggered=self.resend)
         nsh = "Send New Highlights of Selected Books"
         nshd = "Send new highlights of selected books to Obsidian. Will prevent non-selected highlights from being " \
                + "sent by 'Send New Highlights'."

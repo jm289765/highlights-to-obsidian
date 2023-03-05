@@ -7,6 +7,7 @@ from calibre.utils.config import JSONConfig
 from calibre_plugins.highlights_to_obsidian.highlight_sender import (title_default_format, body_default_format,
                                                                      vault_default_name, no_notes_default_format,
                                                                      header_default_format, sort_key_default)
+from calibre_plugins.highlights_to_obsidian.__init__ import version
 
 # This is where all preferences for this plugin will be stored
 # Remember that this name (i.e. plugins/highlights_to_obsidian) is also
@@ -42,21 +43,19 @@ class ConfigWidget(QWidget):
         self.spacing = 10
 
         # header
-        self.config_label = QLabel('<b>Highlights to Obsidian Config</b>', self)
+        self.config_label = QLabel(f'<b>Highlights to Obsidian v{version}</b>', self)
         self.l.addWidget(self.config_label)
 
         self.l.addSpacing(self.spacing)
 
-        self.formatting_dialog = FormattingDialog()
         self.format_config_button = QPushButton("Formatting Options")
-        self.format_config_button.clicked.connect(self.formatting_dialog.exec)
+        self.format_config_button.clicked.connect(lambda: FormattingDialog().exec())
         self.l.addWidget(self.format_config_button)
 
         self.l.addSpacing(self.spacing)
 
-        self.other_dialog = OtherConfigDialog()
         self.other_config_button = QPushButton("Other Options")
-        self.other_config_button.clicked.connect(self.other_dialog.exec)
+        self.other_config_button.clicked.connect(lambda: OtherConfigDialog().exec())
         self.l.addWidget(self.other_config_button)
 
         self.l.addSpacing(self.spacing)
@@ -110,6 +109,7 @@ class FormattingDialog(QDialog):
         self.l.addWidget(self.body_format_label)
 
         self.body_format_input = QPlainTextEdit(self)
+        self.body_format_input.setLineWrapMode(QPlainTextEdit.LineWrapMode.NoWrap)
         self.body_format_input.setPlainText(prefs['body_format'])
         self.body_format_input.setPlaceholderText("Note body format...")
         self.l.addWidget(self.body_format_input)
@@ -123,6 +123,7 @@ class FormattingDialog(QDialog):
         self.l.addWidget(self.no_notes_format_label)
 
         self.no_notes_format_input = QPlainTextEdit(self)
+        self.no_notes_format_input.setLineWrapMode(QPlainTextEdit.LineWrapMode.NoWrap)
         self.no_notes_format_input.setPlainText(prefs['no_notes_format'])
         self.no_notes_format_input.setPlaceholderText("Body format for highlights without notes...")
         self.l.addWidget(self.no_notes_format_input)
@@ -136,6 +137,7 @@ class FormattingDialog(QDialog):
 
         # text box for header formatting options
         self.header_format_input = QPlainTextEdit(self)
+        self.header_format_input.setLineWrapMode(QPlainTextEdit.LineWrapMode.NoWrap)
         self.header_format_input.setPlainText(prefs['header_format'])
         self.header_format_input.setPlaceholderText("Header format...")
         self.l.addWidget(self.header_format_input)

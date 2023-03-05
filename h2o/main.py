@@ -4,6 +4,7 @@ from calibre_plugins.highlights_to_obsidian.button_actions import (help_menu, se
                                                                    send_all_highlights, resend_highlights,
                                                                    send_new_selected_highlights, send_all_selected_highlights)
 from calibre_plugins.highlights_to_obsidian.config import prefs
+from calibre_plugins.highlights_to_obsidian.__init__ import version
 
 
 class MainDialog(QDialog):
@@ -24,6 +25,13 @@ class MainDialog(QDialog):
 
         self.l = QVBoxLayout()
         self.setLayout(self.l)
+        self.spacing = 10
+
+        # header
+        self.menu_label = QLabel(f'<b>Highlights to Obsidian v{version}</b>', self)
+        self.l.addWidget(self.menu_label)
+
+        self.l.addSpacing(self.spacing)
 
         # send new highlights button
         self.send_button = QPushButton("Send new highlights to obsidian", self)
@@ -51,7 +59,7 @@ class MainDialog(QDialog):
         self.l.addWidget(self.send_all_selected_button)
 
         # separate function buttons from config and help
-        self.l.addSpacing(10)
+        self.l.addSpacing(self.spacing)
 
         # button to open config
         self.conf_button = QPushButton(
