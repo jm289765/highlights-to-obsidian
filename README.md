@@ -24,7 +24,7 @@ After installing, go to Preferences -> Toolbars & menus -> The main toolbar. The
 
 - You can set keyboard shortcuts in Preferences -> Shortcuts -> H2O.
 
-- Due to URI length limits, H2O can only send a few thousand words to a single note at once. Extra text will be sent to different notes with increasing numbers added to the end of the title.
+- Due to URI length limits, H2O can only send a few thousand words to a single note at once. Extra text will be sent to different notes with increasing numbers added to the end of the title. This can be changed in the config.
 
 <a name="formatting"></a>
 ## Formatting Options
@@ -64,7 +64,7 @@ After installing, go to Preferences -> Toolbars & menus -> The main toolbar. The
 
 **H2O Data:**
 - {totalsent}: The total number of highlights being sent.
-- {booksent}: The total number of highlights being sent to this Obsidian note.
+- {booksent}: The total number of highlights being sent to this Obsidian note. If a large note is split into multiple smaller notes, {booksent} will give the total being sent to all of those smaller notes.
 - {highlightsent}: This highlight's position in the highlights being sent to this note. For example, "{highlightsent} out of {booksent}" might result in "3 out of 5".
 
 ![](/images/send-success.png)

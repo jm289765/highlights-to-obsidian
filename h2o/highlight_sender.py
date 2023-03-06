@@ -14,7 +14,7 @@ vault_default_name = "My Vault"
 title_default_format = "Books/{title} by {authors}"
 body_default_format = "\n[Highlighted]({url}) on {date} at {time} UTC {timeoffset}:\n{blockquote}\n\n{notes}\n\n---\n"
 no_notes_default_format = "\n[Highlighted]({url}) on {date} at {time} UTC {timeoffset}:\n{blockquote}\n\n---\n"
-header_default_format = "\n{booksent} highlights sent to this note on {datenow} at {timenow} UTC.\n\n---\n"
+header_default_format = "\n{booksent} highlights from \"{title}\" sent on {datenow} at {timenow} UTC.\n\n---\n"
 
 sort_key_default = "location"
 
@@ -252,6 +252,8 @@ class HighlightSender:
         self.header_format = header_default_format
         self.book_titles_authors = {}
         self.annotations_list = []
+        self.max_file_size = -1  # -1 = unlimited
+        self.copy_header = False
         self.sort_key = sort_key_default
 
     def set_library(self, library_name: str):
@@ -293,6 +295,18 @@ class HighlightSender:
         :param annotations_list: the object returned by calibre.db.cache.Cache.new_api's all_annotations() function
         """
         self.annotations_list = annotations_list
+
+    def set_max_file_size(self, max_file_size=-1, copy_header=False):
+        """
+        sets the maximum size of the body of files sent to obsidian, in text characters. If a file is too long,
+        it will be split into smaller files that are under the max file size.
+
+        :param max_file_size: max file size. If -1, file size is unlimited.
+        :param copy_header: If True, the file's header will be copied to each file that the file is split into.
+        :return: none
+        """
+        self.max_file_size = max_file_size
+        self.copy_header = copy_header
 
     def set_sort_key(self, sort_key: str):
         """
@@ -453,30 +467,54 @@ class HighlightSender:
                 format_dat = _dat[0]  # list[title, body]
                 body_and_sort = [format_dat[1], _dat[1]]  # [note body, sort key]
                 base_title = format_dat[0]
+                note_length, note_title = len(body_and_sort[0]), base_title
 
-                # limit each merged highlight to 20000 chars. it could be higher, but we need room for url encoding.
-                #
-                # This is necessary because some operating systems have a limit to how long a uri can be. or maybe the
-                # problem is some detail about how webbrowser.open() is implemented. on my windows 11 laptop, calling
-                # webbrowser.open("obsidian://" + "a" * 32699) works, but "a" * 32700 will open microsoft edge instead,
-                # and if the number reaches 32757 it gives an error.
-                note_title, l = base_title, _lengths.get(base_title, False)
-                if l:  # start using a different title every 20k characters
-                    splits = l // 20000
+                def add_item_to_note(note, item):
+                    if note in _books:
+                        _books[note].append(item)
+                    else:
+                        _books[note] = [item]
+
+                def add_length_to_note(note, length):
+                    lngth = _lengths.get(note, 0)
+                    cts = _counts.get(note, 0)
+                    if self.max_file_size > -1:
+                        note_count = lngth // self.max_file_size
+                        next_max = self.max_file_size * (note_count + 1)
+                        if length + lngth > next_max:
+                            # file will be too big if this highlight is added, so we skip to the start of the next file
+                            # checking for length > max_file_size is done before this function is called
+                            lngth = next_max
+
+                    _lengths[note] = lngth + length
+                    _counts[note] = cts + 1
+
+                if -1 < self.max_file_size < note_length:  # note is too big, no file can hold it
+                    return
+
+                # do this before add_item_to_note so we can figure out what number to append to note title
+                add_length_to_note(base_title, note_length)
+
+                # limit the file size of notes
+                if self.max_file_size > -1:
+                    l = _lengths.get(base_title, 0)
+                    splits = l // self.max_file_size
                     if splits > 0:
                         note_title = base_title + f" ({splits})"
 
-                if note_title in _books:
-                    _books[note_title].append(body_and_sort)
-                else:
-                    _books[note_title] = [body_and_sort]
+                add_item_to_note(note_title, body_and_sort)
 
-                if base_title in _lengths:
-                    _lengths[base_title] += len(body_and_sort[0])
-                    _counts[base_title] += 1
-                else:
-                    _lengths[base_title] = len(body_and_sort[0])
-                    _counts[base_title] = 1
+            def get_base_title(_title: str, _valid_titles: List[str]) -> str:
+                """if this is part of a split note, e.g. "title (1)" or "title (2)", remove the " (x)" """
+                # todo: change the data format for split note titles, so that you can simplify this
+                _ret = _title
+                # space, parentheses, number, parentheses, end of string
+                __match = regex.search(" \((\d+)\)$", _title)
+                if __match:
+                    base = _title[:_title.rfind(" ")]
+                    if base in _valid_titles:
+                        _ret = base
+                return _ret
 
             def apply_sent_amount_format(_books: Dict[str, List], _headers: Dict[str, str],
                                          total_highlights: int, book_highlights: Dict[str, int]):
@@ -493,18 +531,6 @@ class HighlightSender:
                 should_apply = self.apply_sent_formats()
                 if True not in should_apply:
                     return
-
-                def get_base_title(_title: str, _valid_titles: List[str]) -> str:
-                    """if this is part of a split note, e.g. "title (1)" or "title (2)", remove the " (x)" """
-                    # todo: change the data format for split note titles, so that you can simplify this
-                    _ret = _title
-                    # space, parentheses, number, parentheses, end of string
-                    __match = regex.search(" \((\d+)\)$", t)
-                    if __match:
-                        base = t[:t.rfind(" ")]
-                        if base in _valid_titles:
-                            _ret = base
-                    return _ret
 
                 if should_apply[0]:  # title
                     # use list(_books.keys()) so that we don't get an error by changing dict keys during iteration
@@ -575,11 +601,16 @@ class HighlightSender:
             # now, `books` contains lists of unsorted [note body, sort key] objects
             ret = []
 
-            # sort each book's highlights and then merge them into a single string
+            # sort each book's highlights and then merge them into a single string. also add headers.
+            header_keys = list(headers.keys())
             for key in books:
                 # header is only included in first of a series of same-book files
                 # (this happens when there's too much text to send to a single file at once)
-                text = headers.get(key, "") + "".join([a[0] for a in books[key]])
+                if self.copy_header:
+                    header = headers.get(get_base_title(key, header_keys), "")
+                else:
+                    header = headers.get(key, "")
+                text = header + "".join([a[0] for a in books[key]])
                 ret.append(self.make_obsidian_data(key, text))
 
             return ret
