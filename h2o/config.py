@@ -19,18 +19,23 @@ prefs = JSONConfig('plugins/highlights_to_obsidian')
 # Set defaults
 # set time to 2 days after unix epoch start. hopefully prevents platform-dependent invalid default
 # last_send_time when using time.mktime()
-prefs.defaults['last_send_time'] = time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime(172800))
+
 prefs.defaults['vault_name'] = vault_default_name
 prefs.defaults['title_format'] = title_default_format
 prefs.defaults['body_format'] = body_default_format
 prefs.defaults['no_notes_format'] = no_notes_default_format
 prefs.defaults['header_format'] = header_default_format
 prefs.defaults['use_header'] = False  # empty string is equal to false
+prefs.defaults['sort_key'] = sort_key_default
+
+prefs.defaults['last_send_time'] = time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime(172800))
 prefs.defaults['prev_send'] = None  # the send time before last_send_time
 prefs.defaults['display_help_on_menu_open'] = True
-prefs.defaults['sort_key'] = sort_key_default
 prefs.defaults['confirm_send_all'] = True  # confirmation dialog when sending all highlights
 prefs.defaults['highlights_sent_dialog'] = True  # show popup with how many highlights were sent
+prefs.defaults['max_note_size'] = "20000"
+prefs.defaults['use_max_note_size'] = True  # make max_note_size easy to toggle
+prefs.defaults['copy_header'] = False  # whether to copy header when splitting a too-big note
 
 
 class ConfigWidget(QWidget):
@@ -275,16 +280,33 @@ class OtherConfigDialog(QDialog):
 
         self.l.addSpacing(self.spacing)
 
+        # max note size and related settings
+        self.max_size_label = QLabel("<b>Maximum note size</b> (errors can happen when notes are too long):")
+        self.l.addWidget(self.max_size_label)
+
+        self.max_size_input = QLineEdit()
+        self.max_size_input.setText(prefs['max_note_size'])
+        self.max_size_input.setPlaceholderText("Max note size...")
+        self.l.addWidget(self.max_size_input)
+
+        self.use_max_size_checkbox = QCheckBox("Restrict length of sent notes to the max note size")
+        self.use_max_size_checkbox.setChecked(prefs['use_max_note_size'])
+        self.l.addWidget(self.use_max_size_checkbox)
+
+        self.copy_header_checkbox = QCheckBox("When splitting up a long note, include the header in each smaller note")
+        self.copy_header_checkbox.setChecked(prefs['copy_header'])
+        self.l.addWidget(self.copy_header_checkbox)
+
+        self.l.addSpacing(self.spacing)
+
         # checkbox for confirmation dialog
         self.show_confirmation_checkbox = QCheckBox("Confirmation dialog when sending all highlights")
-        if prefs['confirm_send_all']:
-            self.show_confirmation_checkbox.setChecked(True)
+        self.show_confirmation_checkbox.setChecked(prefs['confirm_send_all'])
         self.l.addWidget(self.show_confirmation_checkbox)
 
         # checkbox for showing how many highlights were sent
         self.show_count_checkbox = QCheckBox("After sending highlights, show how many were sent")
-        if prefs['highlights_sent_dialog']:
-            self.show_count_checkbox.setChecked(True)
+        self.show_count_checkbox.setChecked(prefs['highlights_sent_dialog'])
         self.l.addWidget(self.show_count_checkbox)
 
         self.l.addSpacing(self.spacing)
@@ -303,6 +325,10 @@ class OtherConfigDialog(QDialog):
     def save_settings(self):
         prefs['vault_name'] = self.vault_input.text()
         prefs['sort_key'] = self.sort_input.text()
+        max_size = self.max_size_input.text()
+        prefs['max_note_size'] = max_size if max_size.isnumeric() else prefs['max_note_size']
+        prefs['use_max_note_size'] = self.use_max_size_checkbox.isChecked()
+        prefs['copy_header'] = self.copy_header_checkbox.isChecked()
         prefs['confirm_send_all'] = self.show_confirmation_checkbox.isChecked()
         prefs['highlights_sent_dialog'] = self.show_count_checkbox.isChecked()
 
