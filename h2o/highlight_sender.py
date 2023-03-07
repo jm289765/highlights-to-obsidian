@@ -56,18 +56,26 @@ def format_data(dat: Dict[str, str], title: str, body: str, no_notes_body: str =
 
         return ret
 
+    # use format_map instead of format so that we leave invalid placeholders, e.g. if a highlight contains curly
+    # brackets, we don't want to replace the part in the highlight (it'll still be replaced if the highlight contains
+    # a valid placeholder though).
     pre_format = title.replace("{title}", remove_slashes(dat["title"]))
-    return [remove_illegal_title_chars(pre_format.format(**dat)),
-            body.format(**dat) if no_notes_body and len(dat["notes"]) > 0 else no_notes_body.format(**dat)]
+    return [remove_illegal_title_chars(pre_format.format_map(dat)),
+            body.format_map(dat) if no_notes_body and len(dat["notes"]) > 0 else no_notes_body.format_map(dat)]
 
 
-def format_header(dat: Dict[str, str], header_format: str) -> str:
+def format_single(dat: Dict[str, str], item_format: str) -> str:
     """
+    returns item_format.format_map(dat)
+
     :param dat: output of make_format_dict. dict containing keys and values for string formatting.
-    :param header_format:
-    :return: string with formatted header
+    :param item_format: string to be formatted
+    :return: string with formatted item
     """
-    return header_format.format(**dat)
+    # use format_map instead of format so that we leave invalid placeholders, e.g. if a highlight contains curly
+    # brackets, we don't want to replace the part in the highlight (it'll still be replaced if the highlight contains
+    # a valid placeholder though).
+    return item_format.format_map(dat)
 
 
 def make_time_format_dict(data: Dict) -> Dict[str, str]:
@@ -203,11 +211,10 @@ def make_sent_format_dict(total_sent, book_sent, highlight_sent) -> Dict[str, st
      the fifth highlight.
     :return: dict containing a format option for each of the params
     """
-    sent_dict = {
-        "totalsent": str(total_sent),  # total highlights sent
-        "booksent": str(book_sent),  # highlights for this book
-        "highlightsent": str(highlight_sent),  # position of this highlight
-    }
+    sent_dict = SafeDict()
+    sent_dict["totalsent"] = str(total_sent)  # total highlights sent
+    sent_dict["booksent"] = str(book_sent)  # highlights for this book
+    sent_dict["highlightsent"] = str(highlight_sent)  # position of this highlight
 
     return sent_dict
 
@@ -237,7 +244,18 @@ def make_format_dict(data, calibre_library: str, book_titles_authors: Dict[int, 
 
     # the | operator merges dictionaries https://peps.python.org/pep-0584/
     # could also pass a dict as a param to each make_x_dict, and have them update it in place
-    return time_options | highlight_options | book_options | placeholders
+    return SafeDict(**time_options, **highlight_options, **book_options, **placeholders)
+
+
+class SafeDict(dict):
+    def __init__(self, **kwargs):
+        """if a key is not found in this dict, will return the key with {curly brackets}.
+
+        useful for making str.format() ignore invalid keys without changing the input string."""
+        super().__init__(kwargs)
+
+    def __missing__(self, key):
+        return "{" + key + "}"
 
 
 class HighlightSender:
@@ -316,7 +334,7 @@ class HighlightSender:
         # todo: verify that the sort key is valid
         self.sort_key = sort_key
 
-    def apply_sent_formats(self) -> Tuple[bool, bool, bool]:
+    def should_apply_sent_formats(self) -> Tuple[bool, bool, bool]:
         """
         since formatting options for how many highlights were sent can't be applied until after the other formatting
         options are applied, they'll end up being applied to formatted strings instead of templates. depending on
@@ -432,7 +450,7 @@ class HighlightSender:
             formatted = format_data(dat, self.title_format, self.body_format, self.no_notes_format)
 
             if formatted[0] not in _headers:  # only make one header per title
-                _headers[formatted[0]] = format_header(dat, self.header_format)
+                _headers[formatted[0]] = format_single(dat, self.header_format)
 
             _dats.append([formatted, self.format_sort_key(dat)])
 
@@ -504,6 +522,7 @@ class HighlightSender:
 
                 add_item_to_note(note_title, body_and_sort)
 
+            # todo: refactor: put base_title in a data object with the modified title instead of calculating it here
             def get_base_title(_title: str, _valid_titles: List[str]) -> str:
                 """if this is part of a split note, e.g. "title (1)" or "title (2)", remove the " (x)" """
                 # todo: change the data format for split note titles, so that you can simplify this
@@ -517,39 +536,35 @@ class HighlightSender:
                 return _ret
 
             def apply_sent_amount_format(_books: Dict[str, List], _headers: Dict[str, str],
-                                         total_highlights: int, book_highlights: Dict[str, int]):
+                                         book_highlights: Dict[str, int], total_highlights: int):
                 """
                 :param _books: formatted highlights being sent to each book (will be updated in-place):
                 dict[title:str, list[list[formatted_body, sort_key]]
                 :param _headers: formatted headers: dict[note_title:str, header:str]. sent amount formatting will be
                  applied in-place.
-                :param total_highlights: total number of highlights being sent
                 :param book_highlights: Dict[title, int] that has the amount of highlights being sent to each book.
+                :param total_highlights: total number of highlights being sent
                 :return: none
                 """
-                # todo: _books and _headers being updated in-place is a source of bugs. change it
-                should_apply = self.apply_sent_formats()
-                if True not in should_apply:
-                    return
 
-                if should_apply[0]:  # title
+                def apply_sent_title(_books, _headers, _book_highlights:Dict[str,int], _total_highlights:int):
                     # use list(_books.keys()) so that we don't get an error by changing dict keys during iteration
                     _b = list(_books.keys())
                     for t in _b:  # t: book title (str)
 
                         base_title = get_base_title(t, _b)
 
-                        fmt = make_sent_format_dict(total_highlights, book_highlights[base_title], -1)
-                        new_title = t.format(**fmt)
+                        fmt = make_sent_format_dict(_total_highlights, _book_highlights[base_title], -1)
+                        new_title = format_single(fmt, t)
                         _books[new_title] = _books[t]
                         del _books[t]
                         if t in _headers:
                             _headers[new_title] = _headers[t]
                             del _headers[t]
-                        if t in book_highlights:
-                            book_highlights[new_title] = book_highlights[t]
+                        if t in _book_highlights:
+                            _book_highlights[new_title] = _book_highlights[t]
 
-                if should_apply[1]:  # body
+                def apply_sent_body(_books, _book_highlights:Dict[str,int], _total_highlights:int):
                     valid_titles = list(_books.keys())
                     for t in _books:  # t: book title (str)
                         def count_highlights_before(_title, _base, __books) -> int:
@@ -575,15 +590,29 @@ class HighlightSender:
                         highlights_before = count_highlights_before(t, base_title, _books)
 
                         for h in range(len(_books[t])):  # _books[h]: [formatted body, sort_key]
-                            fmt = make_sent_format_dict(total_highlights, book_highlights[base_title],
+                            fmt = make_sent_format_dict(_total_highlights, _book_highlights[base_title],
                                                         highlights_before + h + 1)
-                            _books[t][h][0] = _books[t][h][0].format(**fmt)
+                            _books[t][h][0] = format_single(fmt, _books[t][h][0])
+
+                def apply_sent_headers(_headers, _book_highlights:Dict[str,int], _total_highlights:int):
+                    for h in _headers:  # h: book title (str)
+                        fmt = make_sent_format_dict(_total_highlights, _book_highlights[h], -1)
+                        _headers[h] = format_single(fmt, _headers[h])
+
+                # todo: _books and _headers being updated in-place is a source of bugs. change it
+
+                should_apply = self.should_apply_sent_formats()
+
+                if should_apply[0]:  # title
+                    apply_sent_title(_books, _headers, book_highlights, total_highlights)
+
+                if should_apply[1]:  # body
+                    apply_sent_body(_books, book_highlights, total_highlights)
 
                 if should_apply[2]:  # header
-                    for h in _headers:  # h: book title (str)
-                        fmt = make_sent_format_dict(total_highlights, book_highlights[h], -1)
-                        _headers[h] = _headers[h].format(**fmt)
+                    apply_sent_headers(_headers, book_highlights, total_highlights)
 
+            # todo: refactor: make a class to store data of book title, highlight, length, count, etc
             books = {}  # dict[title:str, list[list[obsidian_data object:Dict, sort_key]]
             lengths = {}  # amount of characters per book. dict[book title:str, int]
             counts = {}  # amount of highlights per book. dict[book title:str, int]
@@ -596,12 +625,12 @@ class HighlightSender:
             for key in books:
                 books[key].sort(key=lambda body_sort: body_sort[1])
 
-            apply_sent_amount_format(books, headers, len(data), counts)
+            apply_sent_amount_format(books, headers, counts, len(data))
 
             # now, `books` contains lists of unsorted [note body, sort key] objects
             ret = []
 
-            # sort each book's highlights and then merge them into a single string. also add headers.
+            # merge each book's highlights into a single string. also add headers.
             header_keys = list(headers.keys())
             for key in books:
                 # header is only included in first of a series of same-book files
