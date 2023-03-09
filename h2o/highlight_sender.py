@@ -12,8 +12,8 @@ import re as regex
 library_default_name = "Calibre Library"
 vault_default_name = "My Vault"
 title_default_format = "Books/{title} by {authors}"
-body_default_format = "\n[Highlighted]({url}) on {date} at {time} UTC {timeoffset}:\n{blockquote}\n\n{notes}\n\n---\n"
-no_notes_default_format = "\n[Highlighted]({url}) on {date} at {time} UTC {timeoffset}:\n{blockquote}\n\n---\n"
+body_default_format = "\n[Highlighted]({url}) on {date} at {time} UTC:\n{blockquote}\n\n{notes}\n\n---\n"
+no_notes_default_format = "\n[Highlighted]({url}) on {date} at {time} UTC:\n{blockquote}\n\n---\n"
 header_default_format = "\n{booksent} highlights from \"{title}\" sent on {datenow} at {timenow} UTC.\n\n---\n"
 
 sort_key_default = "location"

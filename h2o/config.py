@@ -53,17 +53,25 @@ class ConfigWidget(QWidget):
 
         self.l.addSpacing(self.spacing)
 
-        self.format_config_button = QPushButton("Formatting Options")
-        self.format_config_button.clicked.connect(lambda: FormattingDialog().exec())
-        self.l.addWidget(self.format_config_button)
+        format_config_button = QPushButton("Formatting Options")
+        format_config_button.clicked.connect(self.do_format_config)
+        self.l.addWidget(format_config_button)
 
         self.l.addSpacing(self.spacing)
 
-        self.other_config_button = QPushButton("Other Options")
-        self.other_config_button.clicked.connect(lambda: OtherConfigDialog().exec())
-        self.l.addWidget(self.other_config_button)
+        other_config_button = QPushButton("Other Options")
+        other_config_button.clicked.connect(self.do_other_config)
+        self.l.addWidget(other_config_button)
 
         self.l.addSpacing(self.spacing)
+
+    def do_format_config(self):
+        dialog = FormattingDialog()
+        dialog.exec()
+
+    def do_other_config(self):
+        dialog = OtherConfigDialog()
+        dialog.exec()
 
     def save_settings(self):
         # saving is handled in the config dialog classes
@@ -212,10 +220,10 @@ class FormattingDialog(QDialog):
 
     def ok_button(self):
         self.save_settings()
-        self.done(QDialog.Accepted)
+        self.accept()
 
     def cancel_button(self):
-        self.done(QDialog.Rejected)
+        self.reject()
 
 
 class OtherConfigDialog(QDialog):
@@ -346,7 +354,7 @@ class OtherConfigDialog(QDialog):
 
     def ok_button(self):
         self.save_settings()
-        self.done(QDialog.Accepted)
+        self.accept()
 
     def cancel_button(self):
-        self.done(QDialog.Rejected)
+        self.reject()
