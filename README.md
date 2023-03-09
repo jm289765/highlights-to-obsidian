@@ -49,8 +49,8 @@ After installing, go to Preferences -> Toolbars & menus -> The main toolbar. The
 - {date}: Date the highlight was made, formatted as YYYY-MM-DD.
 - {time}: Time the highlight was made, formatted as HH:MM:SS.
 - {datetime}: Date and time highlight was made, formatted as YYYY-MM-DD HH:MM:SS.
-- {day}: Day of the month the highlight was made, as in 3 or 17.
-- {month}: Month the highlight was made, as in 4 for April or 10 for October.
+- {day}: Day of the month the highlight was made, as in 03 or 17.
+- {month}: Month the highlight was made, as in 04 for April or 10 for October.
 - {year}: Full year the highlight was made, as in 2022.
 - {hour}: Hour the highlight was made, based on a 24-hour (not 12-hour) system.
 - {minute}: Minute the highlight was made.
