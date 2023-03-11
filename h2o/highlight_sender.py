@@ -430,83 +430,83 @@ class HighlightSender:
                 _ret = base
         return _ret
 
-    def apply_sent_amount_format(self, _books: Dict[str, List], _headers: Dict[str, str],
-                                 book_highlights: Dict[str, int], total_highlights: int):
+    def apply_sent_title(self, _books, _headers, _book_highlights: Dict[str, int], _total_highlights: int):
         """
         :param _books: formatted highlights being sent to each book (will be updated in-place):
         dict[title:str, list[list[formatted_body, sort_key]]
         :param _headers: formatted headers: dict[note_title:str, header:str]. sent amount formatting will be
          applied in-place.
-        :param book_highlights: Dict[title, int] that has the amount of highlights being sent to each book.
-        :param total_highlights: total number of highlights being sent
+        :param _book_highlights: Dict[title, int] that has the amount of highlights being sent to each book.
+        :param _total_highlights: total number of highlights being sent
         :return: none
         """
+        # use list(_books.keys()) so that we don't get an error by changing dict keys during iteration
+        _b = list(_books.keys())
+        for t in _b:  # t: book title (str)
 
-        def apply_sent_title(_books, _headers, _book_highlights: Dict[str, int], _total_highlights: int):
-            # use list(_books.keys()) so that we don't get an error by changing dict keys during iteration
-            _b = list(_books.keys())
-            for t in _b:  # t: book title (str)
+            base_title = self.get_base_title(t, _b)
 
-                base_title = self.get_base_title(t, _b)
+            fmt = make_sent_format_dict(_total_highlights, _book_highlights[base_title], -1)
+            new_title = format_single(fmt, t)
+            _books[new_title] = _books[t]
+            del _books[t]
+            if t in _headers:
+                _headers[new_title] = _headers[t]
+                del _headers[t]
+            if t in _book_highlights:
+                _book_highlights[new_title] = _book_highlights[t]
 
-                fmt = make_sent_format_dict(_total_highlights, _book_highlights[base_title], -1)
-                new_title = format_single(fmt, t)
-                _books[new_title] = _books[t]
-                del _books[t]
-                if t in _headers:
-                    _headers[new_title] = _headers[t]
-                    del _headers[t]
-                if t in _book_highlights:
-                    _book_highlights[new_title] = _book_highlights[t]
+    def apply_sent_body(self, _books, _book_highlights: Dict[str, int], _total_highlights: int):
+        valid_titles = list(_books.keys())
 
-        def apply_sent_body(_books, _book_highlights: Dict[str, int], _total_highlights: int):
-            valid_titles = list(_books.keys())
+        for t in _books:  # t: book title (str)
+            def count_highlights_before(_title, _base, __books) -> int:
+                """
+                if a highlight has " (x)" at the end, count the highlights being sent to previous notes
 
-            for t in _books:  # t: book title (str)
-                def count_highlights_before(_title, _base, __books) -> int:
-                    """
-                    if a highlight has " (x)" at the end, count the highlights being sent to previous notes
+                :param _title: title of the note these highlights are being sent to
+                :param _base: base title for this title
+                :param __books: dict[title, list[highlights]]
+                :return: number of highlights in notes with same base title but a lower x in their " (x)"
+                """
+                _ret = 0
+                _b, _t = len(_base), len(_title)
+                if _b != _t:
+                    title_number = int(_title[_b + 2:-1])  # t is base title + " (num)"
+                    _ret = len(__books[_base])
+                    for x in range(1, title_number):
+                        _ret += len(__books[_base + f" ({x})"])
 
-                    :param _title: title of the note these highlights are being sent to
-                    :param _base: base title for this title
-                    :param __books: dict[title, list[highlights]]
-                    :return: number of highlights in notes with same base title but a lower x in their " (x)"
-                    """
-                    _ret = 0
-                    _b, _t = len(_base), len(_title)
-                    if _b != _t:
-                        title_number = int(_title[_b + 2:-1])  # t is base title + " (num)"
-                        _ret = len(__books[_base])
-                        for x in range(1, title_number):
-                            _ret += len(__books[_base + f" ({x})"])
+                return _ret
 
-                    return _ret
+            base_title = self.get_base_title(t, valid_titles)
+            highlights_before = count_highlights_before(t, base_title, _books)
 
-                base_title = self.get_base_title(t, valid_titles)
-                highlights_before = count_highlights_before(t, base_title, _books)
+            for h in range(len(_books[t])):  # _books[t]: List[List[formatted body, sort_key]]
+                fmt = make_sent_format_dict(_total_highlights, _book_highlights[base_title],
+                                            highlights_before + h + 1)
+                _books[t][h][0] = format_single(fmt, _books[t][h][0])
 
-                for h in range(len(_books[t])):  # _books[h]: [formatted body, sort_key]
-                    fmt = make_sent_format_dict(_total_highlights, _book_highlights[base_title],
-                                                highlights_before + h + 1)
-                    _books[t][h][0] = format_single(fmt, _books[t][h][0])
-
-        def apply_sent_headers(_headers, _book_highlights: Dict[str, int], _total_highlights: int):
+    def apply_sent_headers(self, _headers, _book_highlights: Dict[str, int], _total_highlights: int):
             for h in _headers:  # h: book title (str)
                 fmt = make_sent_format_dict(_total_highlights, _book_highlights[h], -1)
                 _headers[h] = format_single(fmt, _headers[h])
+
+    def apply_sent_amount_format(self, _books: Dict[str, List], _headers: Dict[str, str],
+                                 book_highlights: Dict[str, int], total_highlights: int):
 
         # todo: _books and _headers being updated in-place is a source of bugs. change it
 
         should_apply = self.should_apply_sent_formats()
 
         if should_apply[0]:  # title
-            apply_sent_title(_books, _headers, book_highlights, total_highlights)
+            self.apply_sent_title(_books, _headers, book_highlights, total_highlights)
 
         if should_apply[1]:  # body
-            apply_sent_body(_books, book_highlights, total_highlights)
+            self.apply_sent_body(_books, book_highlights, total_highlights)
 
         if should_apply[2]:  # header
-            apply_sent_headers(_headers, book_highlights, total_highlights)
+            self.apply_sent_headers(_headers, book_highlights, total_highlights)
 
     def merge_highlights(self, data, _headers):
             """
@@ -577,6 +577,9 @@ class HighlightSender:
                 add_item_to_note(note_title, body_and_sort)
 
             # todo: refactor: make a BookData class to store data of book title(s), highlight, length, count, etc
+            #  BookData: fields for base title, header, list of modified titles with lists of notes
+            #            functions for formatting title, header, etc
+
             books = {}  # dict[title:str, list[list[obsidian_data object:Dict, sort_key]]
             lengths = {}  # amount of characters per book. dict[book title:str, int]
             counts = {}  # amount of highlights per book. dict[book title:str, int]
@@ -597,15 +600,15 @@ class HighlightSender:
             # merge each book's highlights into a single string. also add headers.
             header_keys = list(_headers.keys())
             for key in books:
-                # header is only included in first of a series of same-book files
-                # (this happens when there's too much text to send to a single file at once)
                 if self.copy_header:
                     header = _headers.get(self.get_base_title(key, header_keys),
                                           f"Error when retrieving header for '{key}'.\n")
                 else:
+                    # header is only included in first of a series of same-book files
                     header = _headers.get(self.get_base_title(key, header_keys),
                                           f"Error when retrieving header for '{key}'.\n")
                 text = header + "".join([a[0] for a in books[key]])
+                # todo: move make_obsidian_data outside of merge_highlights
                 ret.append(self.make_obsidian_data(key, text))
 
             return ret
