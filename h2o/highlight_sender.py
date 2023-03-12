@@ -1,6 +1,7 @@
+import bisect
 import time
 import webbrowser
-from typing import Dict, List, Callable, Any, Tuple
+from typing import Dict, List, Callable, Any, Tuple, Iterable
 from urllib.parse import urlencode, quote
 import datetime
 import re as regex
@@ -258,6 +259,198 @@ class SafeDict(dict):
         return "{" + key + "}"
 
 
+class BookData:
+    # todo: refactor: make a BookData class to store data of book title(s), highlight, length, count, etc
+    #  BookData: fields for title, header, list of notes and sort keys or dict of {sort_key: note}?
+    #            functions for formatting title, header, etc
+    #  BookList: holds a dict of string titles of books with a BookData for each one.
+    #            functions for add(title, BookData), split long dataset into multiple books, get base title
+    #                of a split book, etc
+    def __init__(self, title: str, header: str = None, notes: List[List[str, Any]] = None):
+        """
+
+        :param title: book's title
+        :param header: header to be used when notes are sent to Obsidian
+        :param notes: list of [note_content, sort_key]
+        """
+
+        self._title = title
+        self._header = header
+        if notes is not None:
+            self.notes: List[List[str, Any]] = list(sorted(notes, key=lambda n: n[1]))
+        else:
+            self.notes: List[List[str, Any]] = []  # List[List[note:str, sort_key:Any]]
+
+    def __len__(self):
+        """ number of notes that this book has """
+        return len(self.notes)
+
+    @property
+    def title(self) -> str:
+        return self._title
+
+    @title.setter
+    def title(self, title: str) -> None:
+        """
+        warning: when possible, use BookList's update_title() instead. if you update the title directly, BookList
+         will keep the old title as the key in its dict of BookData objects.
+        """
+        self._title = title
+
+    @property
+    def header(self) -> str:
+        return self._header
+
+    @header.setter
+    def header(self, header: str) -> None:
+        self._header = header
+
+    def add_note(self, note: str, sort_key: Any = None) -> None:
+        """
+        :param note: text of note to add to this book's notes
+        :param sort_key: sort key to use when merging book's notes into a single string
+        :return: none
+        """
+        self.insort_note([note, sort_key])
+
+    def update_note(self, idx: int, new_note: str) -> None:
+        self.notes[idx][0] = new_note
+
+    def insort_note(self, note: List[str, Any]):
+        """ copied and modified from bisect.insort_right(...)
+
+        Insert note into self.notes, and keep it sorted based on sort_key.
+        Assumes that the note is not already in self.notes.
+        If sort_key is None, append the note to self.notes.
+        """
+        sort_key = note[1]
+        if sort_key is None:
+            self.notes.append(note)
+            return
+
+        lo, hi = 0, len(self.notes)
+        while lo < hi:
+            mid = (lo + hi) // 2
+            if sort_key < self.notes[mid][1]:
+                hi = mid
+            else:
+                lo = mid + 1
+        self.notes.insert(lo, note)
+
+
+class BookList:
+    # todo: refactor: make a BookData class to store data of book title(s), highlight, length, count, etc
+    #  BookData: fields for title, header, list of notes and sort keys or dict of {sort_key: note}?
+    #            functions for formatting title, header, etc
+    #  BookList: holds a dict of string titles of books with a BookData for each one.
+    #            functions for add(title, note), split long dataset into multiple books, get base title
+    #                of a split book, create headers when adding new notes, function to apply sent amount formatting
+    def __init__(self):
+        self.books: Dict[str, BookData] = {}  # {title: BookData}
+        self.base_titles: Dict[str, str] = {}  # {full_title: base_title}
+
+    def add_book(self, book: BookData):
+        """
+        adds a book to this BookList. If the book is already in this BookList, the old version is replaced.
+
+        :param book: a BookData object to add to the book list
+        :return: none
+        """
+        self.books[book.title] = book
+
+    def add_note(self, title: str, note: str, sort_key: Any = 0) -> None:
+        """
+        adds a note to this book list. if the title already exists, the note is added to the appropriate BookData.
+        otherwise, a new BookData will be created.
+
+        :param title: title of the note being added
+        :param note: contents of the note being added
+        :param sort_key: used to sort the note within its file when sending to obsidian
+        :return: none
+        """
+        if title in self.books:
+            self.books[title].add_note(note, sort_key)
+        else:
+            b = BookData(title)
+            b.add_note(note, sort_key)
+            self.books[title] = b
+
+    def update_title(self, old_title: str, new_title: str) -> None:
+        """
+        updates the title of the specified book if the book is in this BookList. If it's not in this BookList,
+        raises an error.
+        """
+        if old_title in self.books:
+            self.books[new_title] = self.books[old_title]
+            del self.books[old_title]
+        else:
+            raise KeyError(f"Title {old_title} not found in BookList!")
+
+    def update_header(self, book_title: str, header: str) -> None:
+        """
+        sets the specified book's header to the given value
+        :return: none
+        """
+        if book_title in self.books:
+            self.books[book_title].header = header
+        else:
+            raise KeyError(f"Title {book_title} not found in BookList!")
+
+    def get_full_notes(self, max_size: int = -1) -> Iterable[Tuple[str, str]]:
+        """
+        :param max_size: max size, in characters, that a note can be
+        :return: yields an iterable of tuples containing (title, body) of notes to be sent to Obsidian.
+        """
+        # prepend header
+        for b in self.books:
+            # get sorted list of books
+            # do the thing where you append notes until you reach the max file size
+            # yield the variable that notes were appended to
+            pass
+        yield "abc", "xyz"
+
+    def apply_sent_amount_format(self, should_apply: Tuple[bool, bool, bool]) -> None:
+        """
+        applies formatting options {totalsent}, {booksent}, {highlightsent}.
+        :return:
+        """
+        total_highlights = sum([len(b) for b in self.books])
+        for b in self.books:
+            book_highlights = len(b)
+
+            if should_apply[0]:  # title
+                self.apply_sent_title(b, book_highlights, total_highlights)
+
+            if should_apply[1]:  # body
+                self.apply_sent_body(b, book_highlights, total_highlights)
+
+            if should_apply[2]:  # header
+                self.apply_sent_headers(b, book_highlights, total_highlights)
+
+    def apply_sent_title(self, _title: str, _book_highlights: int, _total_highlights: int):
+        """
+        :param _title: title of the book whose title you want to apply sent amount formats to
+        :param _book_highlights: Dict[title, int] that has the amount of highlights being sent to each book.
+        :param _total_highlights: total number of highlights being sent
+        :return: none
+        """
+        fmt = make_sent_format_dict(_total_highlights, _book_highlights, -1)
+        new_title = format_single(fmt, _title)
+        self.books[_title].title = new_title
+        self.books[new_title] = self.books[_title]
+        del self.books[_title]
+
+    def apply_sent_body(self, _title: str, _book_highlights: int, _total_highlights: int):
+        for h in range(len(self.books[_title])):
+            # since BookData keeps its note list sorted, it's easy to know how many have been sent before this
+            fmt = make_sent_format_dict(_total_highlights, _book_highlights, h + 1)
+            self.books[_title].update_note(h, format_single(fmt, self.books[_title].notes[h][0]))
+
+    def apply_sent_headers(self, _title:str, _book_highlights:int, _total_highlights: int):
+        fmt = make_sent_format_dict(_total_highlights, _book_highlights, -1)
+        self.books[_title].header = format_single(fmt, self.books[_title].header)
+
+
 class HighlightSender:
 
     def __init__(self):
@@ -488,9 +681,9 @@ class HighlightSender:
                 _books[t][h][0] = format_single(fmt, _books[t][h][0])
 
     def apply_sent_headers(self, _headers, _book_highlights: Dict[str, int], _total_highlights: int):
-            for h in _headers:  # h: book title (str)
-                fmt = make_sent_format_dict(_total_highlights, _book_highlights[h], -1)
-                _headers[h] = format_single(fmt, _headers[h])
+        for h in _headers:  # h: book title (str)
+            fmt = make_sent_format_dict(_total_highlights, _book_highlights[h], -1)
+            _headers[h] = format_single(fmt, _headers[h])
 
     def apply_sent_amount_format(self, _books: Dict[str, List], _headers: Dict[str, str],
                                  book_highlights: Dict[str, int], total_highlights: int):
@@ -509,7 +702,7 @@ class HighlightSender:
             self.apply_sent_headers(_headers, book_highlights, total_highlights)
 
     def merge_highlights(self, data, _headers):
-            """
+        """
             merges formatted highlights into a single string for each unique note title found in dats.
 
             This limits the length of merged note contents to 20000 characters. If the length exceeds this, extra
@@ -524,8 +717,8 @@ class HighlightSender:
             single, sorted item in the output.
             """
 
-            def add_data_item(_dat, _books, _lengths, _counts):
-                """
+        def add_data_item(_dat, _books, _lengths, _counts):
+            """
                 :param _dat: data item: [[title, body], sort_key]
                 :param _books: dict that will be updated in-place. will have a format_data() output and sort key
                 added to a note title. like _books["title"].append([formatted_body, sort_key]). automatically handles
@@ -536,82 +729,78 @@ class HighlightSender:
                 more than one title with a smaller amount of highlights each.
                 :return: none
                 """
-                format_dat = _dat[0]  # list[title, body]
-                body_and_sort = [format_dat[1], _dat[1]]  # [note body, sort key]
-                base_title = format_dat[0]
-                note_length, note_title = len(body_and_sort[0]), base_title
+            format_dat = _dat[0]  # list[title, body]
+            body_and_sort = [format_dat[1], _dat[1]]  # [note body, sort key]
+            base_title = format_dat[0]
+            note_length, note_title = len(body_and_sort[0]), base_title
 
-                def add_item_to_note(note, item):
-                    if note in _books:
-                        _books[note].append(item)
-                    else:
-                        _books[note] = [item]
-
-                def add_length_to_note(note, length):
-                    lngth = _lengths.get(note, 0)
-                    cts = _counts.get(note, 0)
-                    if self.max_file_size > -1:
-                        note_count = lngth // self.max_file_size
-                        next_max = self.max_file_size * (note_count + 1)
-                        if length + lngth > next_max:
-                            # file will be too big if this highlight is added, so we skip to the start of the next file
-                            # checking for length > max_file_size is done before this function is called
-                            lngth = next_max
-
-                    _lengths[note] = lngth + length
-                    _counts[note] = cts + 1
-
-                if -1 < self.max_file_size < note_length:  # note is too big, no file can hold it
-                    return
-
-                # do this before add_item_to_note so we can figure out what number to append to note title
-                add_length_to_note(base_title, note_length)
-
-                # limit the file size of notes
-                if self.max_file_size > -1:
-                    l = _lengths.get(base_title, 0)
-                    splits = l // self.max_file_size
-                    if splits > 0:
-                        note_title = base_title + f" ({splits})"
-
-                add_item_to_note(note_title, body_and_sort)
-
-            # todo: refactor: make a BookData class to store data of book title(s), highlight, length, count, etc
-            #  BookData: fields for base title, header, list of modified titles with lists of notes
-            #            functions for formatting title, header, etc
-
-            books = {}  # dict[title:str, list[list[obsidian_data object:Dict, sort_key]]
-            lengths = {}  # amount of characters per book. dict[book title:str, int]
-            counts = {}  # amount of highlights per book. dict[book title:str, int]
-
-            # make list of highlights for each note title
-            for d in data:
-                add_data_item(d, books, lengths, counts)
-
-            # sort books here to that apply_sent_amount_format gives accurate position of highlight in note
-            for key in books:
-                books[key].sort(key=lambda body_sort: body_sort[1])
-
-            self.apply_sent_amount_format(books, _headers, counts, len(data))
-
-            # now, `books` contains lists of unsorted [note body, sort key] objects
-            ret = []
-
-            # merge each book's highlights into a single string. also add headers.
-            header_keys = list(_headers.keys())
-            for key in books:
-                if self.copy_header:
-                    header = _headers.get(self.get_base_title(key, header_keys),
-                                          f"Error when retrieving header for '{key}'.\n")
+            def add_item_to_note(note, item):
+                if note in _books:
+                    _books[note].append(item)
                 else:
-                    # header is only included in first of a series of same-book files
-                    header = _headers.get(self.get_base_title(key, header_keys),
-                                          f"Error when retrieving header for '{key}'.\n")
-                text = header + "".join([a[0] for a in books[key]])
-                # todo: move make_obsidian_data outside of merge_highlights
-                ret.append(self.make_obsidian_data(key, text))
+                    _books[note] = [item]
 
-            return ret
+            def add_length_to_note(note, length):
+                lngth = _lengths.get(note, 0)
+                cts = _counts.get(note, 0)
+                if self.max_file_size > -1:
+                    note_count = lngth // self.max_file_size
+                    next_max = self.max_file_size * (note_count + 1)
+                    if length + lngth > next_max:
+                        # file will be too big if this highlight is added, so we skip to the start of the next file
+                        # checking for length > max_file_size is done before this function is called
+                        lngth = next_max
+
+                _lengths[note] = lngth + length
+                _counts[note] = cts + 1
+
+            if -1 < self.max_file_size < note_length:  # note is too big, no file can hold it
+                return
+
+            # do this before add_item_to_note so we can figure out what number to append to note title
+            add_length_to_note(base_title, note_length)
+
+            # limit the file size of notes
+            if self.max_file_size > -1:
+                l = _lengths.get(base_title, 0)
+                splits = l // self.max_file_size
+                if splits > 0:
+                    note_title = base_title + f" ({splits})"
+
+            add_item_to_note(note_title, body_and_sort)
+
+        books = {}  # dict[title:str, list[list[obsidian_data object:Dict, sort_key]]
+        lengths = {}  # amount of characters per book. dict[book title:str, int]
+        counts = {}  # amount of highlights per book. dict[book title:str, int]
+
+        # make list of highlights for each note title
+        for d in data:
+            add_data_item(d, books, lengths, counts)
+
+        # sort books here to that apply_sent_amount_format gives accurate position of highlight in note
+        for key in books:
+            books[key].sort(key=lambda body_sort: body_sort[1])
+
+        self.apply_sent_amount_format(books, _headers, counts, len(data))
+
+        # now, `books` contains lists of unsorted [note body, sort key] objects
+        ret = []
+
+        # merge each book's highlights into a single string. also add headers.
+        header_keys = list(_headers.keys())
+        for key in books:
+            if self.copy_header:
+                header = _headers.get(self.get_base_title(key, header_keys),
+                                      f"Error when retrieving header for '{key}'.\n")
+            else:
+                # header is only included in first of a series of same-book files
+                header = _headers.get(self.get_base_title(key, header_keys),
+                                      f"Error when retrieving header for '{key}'.\n")
+            text = header + "".join([a[0] for a in books[key]])
+            # todo: move make_obsidian_data outside of merge_highlights
+            ret.append(self.make_obsidian_data(key, text))
+
+        return ret
 
     def is_valid_highlight(self, _dat: Dict, condition: Callable[[Any], bool]):
         """
