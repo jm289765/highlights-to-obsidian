@@ -28,7 +28,13 @@ def send_item_to_obsidian(obsidian_data: Dict[str, str]) -> None:
     """
     encoded_data = urlencode(obsidian_data, quote_via=quote)
     uri = "obsidian://new?" + encoded_data
-    webbrowser.open(uri)
+    try:
+        webbrowser.open(uri)
+    except ValueError as e:
+        raise ValueError(f" send_item_to_obsidian: '{e}' in note '{obsidian_data['file']}'.\n\n"
+                         f"If this error says that the filepath is too long, try reducing the max file size in "
+                         f"the Highlights to Obsidian config (the path length that caused this error is {len(uri)}. "
+                         f"The path size will be larger than the max file size due to URL encoding).")
 
 
 def format_data(dat: Dict[str, str], title: str, body: str, no_notes_body: str = None) -> List[str]:
