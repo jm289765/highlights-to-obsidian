@@ -36,6 +36,7 @@ prefs.defaults['highlights_sent_dialog'] = True  # show popup with how many high
 prefs.defaults['max_note_size'] = "20000"
 prefs.defaults['use_max_note_size'] = True  # make max_note_size easy to toggle
 prefs.defaults['copy_header'] = False  # whether to copy header when splitting a too-big note
+prefs.defaults['web_user'] = False  # whether we should send web user or local user's highlights
 
 
 class ConfigWidget(QWidget):
@@ -319,6 +320,13 @@ class OtherConfigDialog(QDialog):
 
         self.l.addSpacing(self.spacing)
 
+        # checkbox for local user or web user
+        self.web_user_checkbox = QCheckBox("Send web user's highlights (instead of local user's highlights)")
+        self.web_user_checkbox.setChecked(prefs['web_user'])
+        self.l.addWidget(self.web_user_checkbox)
+
+        self.l.addSpacing(self.spacing)
+
         # ok and cancel buttons
         self.buttons = QDialogButtonBox()
         self.buttons.setStandardButtons(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
@@ -339,6 +347,7 @@ class OtherConfigDialog(QDialog):
         prefs['copy_header'] = self.copy_header_checkbox.isChecked()
         prefs['confirm_send_all'] = self.show_confirmation_checkbox.isChecked()
         prefs['highlights_sent_dialog'] = self.show_count_checkbox.isChecked()
+        prefs['web_user'] = self.web_user_checkbox.isChecked()
 
         # validate time input
         send_time = self.time_input.text()

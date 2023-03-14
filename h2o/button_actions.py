@@ -45,10 +45,18 @@ def send_highlights(parent, db, condition=lambda x: True, update_send_time=True)
         _sender.set_no_notes_format(prefs["no_notes_format"])
         _sender.set_header_format(prefs["header_format"] if prefs["use_header"] else "")
         _sender.set_book_titles_authors(book_ids_to_titles_authors(db))
-        _sender.set_annotations_list(db.all_annotations())
         _sender.set_sort_key(prefs["sort_key"])
         if prefs['use_max_note_size']:
             _sender.set_max_file_size(int(prefs['max_note_size']), prefs['copy_header'])
+
+        """ all_annotations() and all_annotation_users()
+         https://github.com/kovidgoyal/calibre/blob/master/src/calibre/db/cache.py
+         
+        some possible values for restrict_to_user
+         https://github.com/kovidgoyal/calibre/blob/master/src/calibre/gui2/library/annotations.py#L138 """
+        # todo: i could replace some logic (e.g. filtering by book id) by using the parameters of db.all_annotations()
+        user = ("web", "*") if prefs["web_user"] else ("local", "viewer")
+        _sender.set_annotations_list(db.all_annotations(restrict_to_user=user))
         return _sender
 
     sender = make_sender()
