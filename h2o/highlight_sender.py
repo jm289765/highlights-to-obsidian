@@ -363,7 +363,7 @@ class BookData:
         _sent = 0  # number of notes that have been returned so far
 
         for idx in range(len(self)):
-            header = self.header if copy_header or idx == 0 else ""
+            header = self.header if copy_header or _sent == 0 else ""
             note_size = len(header) + len(_accum)
 
             if len(self.notes[idx][0]) + len(header) > max_size:
@@ -707,7 +707,7 @@ class HighlightSender:
             h = self.process_highlight(highlight, headers)
             books.add_note(h[0], h[1][0], h[1][1])
             if h[2] is not None:
-                books[h[0]].header = h[2]
+                books.update_header(h[0], h[2])
 
         books.apply_sent_amount_format(self.should_apply_sent_formats())
 
