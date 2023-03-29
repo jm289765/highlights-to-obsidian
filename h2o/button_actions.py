@@ -56,7 +56,7 @@ def send_highlights(parent, db, condition=lambda x: True, update_send_time=True)
         some possible values for restrict_to_user
          https://github.com/kovidgoyal/calibre/blob/master/src/calibre/gui2/library/annotations.py#L138 """
         # todo: i could replace some logic (e.g. filtering by book id) by using the parameters of db.all_annotations()
-        user = ("web", "*") if prefs["web_user"] else ("local", "viewer")
+        user = ("web", prefs["web_user_name"]) if prefs["web_user"] else ("local", "viewer")
         _sender.set_annotations_list(db.all_annotations(restrict_to_user=user))
         return _sender
 
