@@ -37,6 +37,7 @@ prefs.defaults['max_note_size'] = "20000"
 prefs.defaults['use_max_note_size'] = True  # make max_note_size easy to toggle
 prefs.defaults['copy_header'] = False  # whether to copy header when splitting a too-big note
 prefs.defaults['web_user'] = False  # whether we should send web user or local user's highlights
+prefs.defaults['sleep_secs'] = 0.1
 
 
 class ConfigWidget(QWidget):
@@ -320,6 +321,16 @@ class OtherConfigDialog(QDialog):
 
         self.l.addSpacing(self.spacing)
 
+        # input for sleep time between highlights
+        self.sleep_label = QLabel('<b>Time to wait</b> between sending files (in seconds):', self)
+        self.l.addWidget(self.sleep_label)
+
+        self.sleep_time_input = QLineEdit()
+        self.sleep_time_input.setText(str(prefs['sleep_secs']))
+        self.sleep_time_input.setPlaceholderText("Web user name (asterisk if no username is used)...")
+        self.l.addWidget(self.sleep_time_input)
+
+        self.l.addSpacing(self.spacing)
         # checkbox for local user or web user
         self.web_user_checkbox = QCheckBox("Send web user's highlights (instead of local user's highlights)")
         self.web_user_checkbox.setChecked(prefs['web_user'])
@@ -348,6 +359,14 @@ class OtherConfigDialog(QDialog):
         prefs['confirm_send_all'] = self.show_confirmation_checkbox.isChecked()
         prefs['highlights_sent_dialog'] = self.show_count_checkbox.isChecked()
         prefs['web_user'] = self.web_user_checkbox.isChecked()
+
+        sleep_time = self.sleep_time_input.text()
+        try:
+            prefs['sleep_secs'] = float(sleep_time)
+        except:
+            txt = f'Could not parse "{sleep_time}". The time to wait between sending highlights will not be changed. ' + \
+                  f'Old value of "{prefs["last_send_time"]}" will be kept.'
+            warning_dialog(self, "Invalid Time", txt, show=True)
 
         # validate time input
         send_time = self.time_input.text()

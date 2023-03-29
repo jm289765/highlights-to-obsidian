@@ -46,6 +46,7 @@ def send_highlights(parent, db, condition=lambda x: True, update_send_time=True)
         _sender.set_header_format(prefs["header_format"] if prefs["use_header"] else "")
         _sender.set_book_titles_authors(book_ids_to_titles_authors(db))
         _sender.set_sort_key(prefs["sort_key"])
+        _sender.set_sleep_time(prefs["sleep_secs"])
         if prefs['use_max_note_size']:
             _sender.set_max_file_size(int(prefs['max_note_size']), prefs['copy_header'])
 

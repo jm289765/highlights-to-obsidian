@@ -3,7 +3,6 @@ import webbrowser
 from typing import Dict, List, Callable, Any, Tuple, Iterable, Union
 from urllib.parse import urlencode, quote
 import datetime
-import re as regex
 
 # avoid importing anything from calibre or the highlights_to_obsidian plugin here
 
@@ -518,6 +517,7 @@ class HighlightSender:
         self.max_file_size = -1  # -1 = unlimited
         self.copy_header = False
         self.sort_key = sort_key_default
+        self.sleep_time = 0
 
     def set_library(self, library_name: str):
         self.library_name = library_name
@@ -578,6 +578,13 @@ class HighlightSender:
         """
         # todo: verify that the sort key is valid
         self.sort_key = sort_key
+
+    def set_sleep_time(self, sleep_time: float):
+        """
+        :param sleep_time: time to wait between sending individual files to obsidian
+        :return: none
+        """
+        self.sleep_time = sleep_time
 
     def should_apply_sent_formats(self) -> Tuple[bool, bool, bool]:
         """
@@ -715,5 +722,6 @@ class HighlightSender:
         #  item then wait for obsidian to open
         for note in books.make_sendable_notes(self.max_file_size, self.copy_header):
             send_item_to_obsidian(self.make_obsidian_data(note[0], note[1]))
+            time.sleep(self.sleep_time)
 
         return sum([len(b) for b in books.values()])
