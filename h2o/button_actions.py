@@ -20,7 +20,9 @@ def help_menu(parent):
            "be sent. If this happens, you can use the \"Resend Previously Sent Highlights\" function.\n\n" + \
            "You can set keyboard shortcuts in calibre's Preferences -> Shortcuts -> H2O.\n\n" + \
            "Due to URI length limits, H2O can only send a few thousand words to a single note at once. Extra text " \
-           "will be sent to different notes with increasing numbers added to the end of the title."
+           "will be sent to different notes with increasing numbers added to the end of the title.\n\n" + \
+           "If you're using Linux and H2O opens your web browser instead of Obsidian, see the xdg-open setting " + \
+           "at the bottom of the config's Other Options."
     info_dialog(parent, title, body, show=True)
 
 

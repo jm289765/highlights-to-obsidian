@@ -1,21 +1,16 @@
+import os
+import subprocess
 import time
 import webbrowser
 from typing import Dict, List, Callable, Any, Tuple, Iterable, Union
 from urllib.parse import urlencode, quote
 import datetime
+from calibre_plugins.highlights_to_obsidian.config import prefs
 
-# avoid importing anything from calibre or the highlights_to_obsidian plugin here
-
-
-# might be better to move these into resource files
-library_default_name = "Calibre Library"
-vault_default_name = "My Vault"
-title_default_format = "Books/{title} by {authors}"
-body_default_format = "\n[Highlighted]({url}) on {date} at {time} UTC:\n{blockquote}\n\n{notes}\n\n---\n"
-no_notes_default_format = "\n[Highlighted]({url}) on {date} at {time} UTC:\n{blockquote}\n\n---\n"
-header_default_format = "\n{booksent} highlights from \"{title}\" sent on {datenow} at {timenow} UTC.\n\n---\n"
-
-sort_key_default = "location"
+# avoid importing anything else from calibre or the highlights_to_obsidian plugin here.
+# this is to avoid having references to the config or the calibre database scattered
+# throughout HighlightSender. those references are in HighlightSender.__init__() and
+# in make_sender() in button_actions.py.
 
 
 def send_item_to_obsidian(obsidian_data: Dict[str, str]) -> None:
@@ -28,7 +23,18 @@ def send_item_to_obsidian(obsidian_data: Dict[str, str]) -> None:
     encoded_data = urlencode(obsidian_data, quote_via=quote)
     uri = "obsidian://new?" + encoded_data
     try:
-        webbrowser.open(uri)
+        if prefs['use_xdg_open']:
+            # this is to avoid a bug on linux, where the uri is opened in web browser instead of Obsidian
+            # on windows, this only gives a good error message if shell=True. i need to know what it
+            # does on Linux and Mac.
+            subprocess.run(['xdg-open', uri], check=True, shell=True)
+
+            # can't use os.system, since it doesn't give an error message when you try to xdg-open on windows
+            # os.system(f'xdg-open \"{uri}\"')
+        else:
+            # it might actually be better to do away with webbrowser.open() and only use os.system(). that might fix
+            #  the problem of needing to limit the max file size. would need to add support for each operating system.
+            webbrowser.open(uri)
     except ValueError as e:
         raise ValueError(f" send_item_to_obsidian: '{e}' in note '{obsidian_data['file']}'.\n\n"
                          f"If this error says that the filepath is too long, try reducing the max file size in "
@@ -506,17 +512,17 @@ class HighlightSender:
 
     def __init__(self):
         # set defaults
-        self.library_name = library_default_name
-        self.vault_name = vault_default_name
-        self.title_format = title_default_format
-        self.body_format = body_default_format
-        self.no_notes_format = no_notes_default_format
-        self.header_format = header_default_format
+        self.library_name = prefs.defaults['library_name']
+        self.vault_name = prefs.defaults['vault_name']
+        self.title_format = prefs.defaults['title_format']
+        self.body_format = prefs.defaults['body_format']
+        self.no_notes_format = prefs.defaults['no_notes_format']
+        self.header_format = prefs.defaults['header_format']
         self.book_titles_authors = {}
         self.annotations_list = []
         self.max_file_size = -1  # -1 = unlimited
         self.copy_header = False
-        self.sort_key = sort_key_default
+        self.sort_key = prefs.defaults['sort_key']
         self.sleep_time = 0
 
     def set_library(self, library_name: str):

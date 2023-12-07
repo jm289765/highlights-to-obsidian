@@ -4,9 +4,6 @@ from qt.core import (QWidget, QVBoxLayout, QLabel, QLineEdit, QPlainTextEdit,
                      QPushButton, QDialog, QDialogButtonBox, QCheckBox)
 from calibre.gui2 import warning_dialog
 from calibre.utils.config import JSONConfig
-from calibre_plugins.highlights_to_obsidian.highlight_sender import (title_default_format, body_default_format,
-                                                                     vault_default_name, no_notes_default_format,
-                                                                     header_default_format, sort_key_default)
 from calibre_plugins.highlights_to_obsidian.__init__ import version
 
 # This is where all preferences for this plugin will be stored
@@ -20,6 +17,17 @@ prefs = JSONConfig('plugins/highlights_to_obsidian')
 # set time to 2 days after unix epoch start. hopefully prevents platform-dependent invalid default
 # last_send_time when using time.mktime()
 
+sort_key_default = "location"
+
+# might be better to move these into resource files
+library_default_name = "Calibre Library"
+vault_default_name = "My Vault"
+title_default_format = "Books/{title} by {authors}"
+body_default_format = "\n[Highlighted]({url}) on {date} at {time} UTC:\n{blockquote}\n\n{notes}\n\n---\n"
+no_notes_default_format = "\n[Highlighted]({url}) on {date} at {time} UTC:\n{blockquote}\n\n---\n"
+header_default_format = "\n{booksent} highlights from \"{title}\" sent on {datenow} at {timenow} UTC.\n\n---\n"
+
+prefs.defaults['library_name'] = library_default_name
 prefs.defaults['vault_name'] = vault_default_name
 prefs.defaults['title_format'] = title_default_format
 prefs.defaults['body_format'] = body_default_format
@@ -36,9 +44,11 @@ prefs.defaults['highlights_sent_dialog'] = True  # show popup with how many high
 prefs.defaults['max_note_size'] = "20000"
 prefs.defaults['use_max_note_size'] = True  # make max_note_size easy to toggle
 prefs.defaults['copy_header'] = False  # whether to copy header when splitting a too-big note
-prefs.defaults['web_user'] = False  # whether we should send web user or local user's highlights
 prefs.defaults['web_user_name'] = "*"
+prefs.defaults['web_user'] = False  # whether we should send web user or local user's highlights
+prefs.defaults['use_xdg_open'] = False
 prefs.defaults['sleep_secs'] = 0.1
+
 
 
 class ConfigWidget(QWidget):
@@ -347,6 +357,11 @@ class OtherConfigDialog(QDialog):
         self.web_user_checkbox.setChecked(prefs['web_user'])
         self.l.addWidget(self.web_user_checkbox)
 
+        # checkbox for linux xdg-open
+        self.linux_xdg_checkbox = QCheckBox("Use Linux xdg-open command instead of Python webbrowser.open()")
+        self.linux_xdg_checkbox.setChecked(prefs['use_xdg_open'])
+        self.l.addWidget(self.linux_xdg_checkbox)
+
         self.l.addSpacing(self.spacing)
 
         # ok and cancel buttons
@@ -369,9 +384,10 @@ class OtherConfigDialog(QDialog):
         prefs['copy_header'] = self.copy_header_checkbox.isChecked()
         prefs['confirm_send_all'] = self.show_confirmation_checkbox.isChecked()
         prefs['highlights_sent_dialog'] = self.show_count_checkbox.isChecked()
-        prefs['web_user'] = self.web_user_checkbox.isChecked()
         username = self.web_user_name_input.text()
         prefs['web_user_name'] = "*" if username == "" else username
+        prefs['web_user'] = self.web_user_checkbox.isChecked()
+        prefs['use_xdg_open'] = self.linux_xdg_checkbox.isChecked()
 
         sleep_time = self.sleep_time_input.text()
         try:
