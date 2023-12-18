@@ -1,5 +1,6 @@
 import os
 import subprocess
+import sys
 import time
 import webbrowser
 from typing import Dict, List, Callable, Any, Tuple, Iterable, Union
@@ -25,12 +26,15 @@ def send_item_to_obsidian(obsidian_data: Dict[str, str]) -> None:
     try:
         if prefs['use_xdg_open']:
             # this is to avoid a bug on linux, where the uri is opened in web browser instead of Obsidian
-            # on windows, this only gives a good error message if shell=True. i need to know what it
-            # does on Linux and Mac.
-            subprocess.run(['xdg-open', uri], check=True, shell=True)
-
-            # can't use os.system, since it doesn't give an error message when you try to xdg-open on windows
-            # os.system(f'xdg-open \"{uri}\"')
+            # https://docs.python.org/3/library/sys.html#sys.platform
+            if sys.platform.startswith('win32'):
+                raise NotImplementedError("Can't use xdg-open on Windows, see settings")
+            elif sys.platform.startswith('darwin'):
+                raise NotImplementedError("Can't use xdg-open on Mac, see settings")
+            else:
+                # probably a linux or unix os
+                os.system(f'xdg-open \"{uri}\"')
+                # using subprocess.run() doesn't seem to work
         else:
             # it might actually be better to do away with webbrowser.open() and only use os.system(). that might fix
             #  the problem of needing to limit the max file size. would need to add support for each operating system.
