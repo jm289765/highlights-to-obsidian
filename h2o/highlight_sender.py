@@ -35,6 +35,12 @@ def send_item_to_obsidian(obsidian_data: Dict[str, str]) -> None:
                 # probably a linux or unix os
                 os.system(f'xdg-open \"{uri}\"')
                 # using subprocess.run() doesn't seem to work
+        elif sys.platform.startswith('darwin'):
+            # avoid a bug on macOS with newer Calibre versions where webbrowser.open() opens the default browser
+            try:
+                subprocess.run(['open', uri], check=True)
+            except (subprocess.SubprocessError, OSError):
+                webbrowser.open(uri)
         else:
             # it might actually be better to do away with webbrowser.open() and only use os.system(). that might fix
             #  the problem of needing to limit the max file size. would need to add support for each operating system.
